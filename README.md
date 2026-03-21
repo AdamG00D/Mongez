@@ -1,98 +1,137 @@
 # Mongez
 
-Mongez is a mobile-first Flutter todo app focused on planning and tracking tasks with a smooth, minimal UI and strong Arabic RTL support.
+<p align="center">
+  <img src="assets/icon.png" width="180" />
+</p>
 
-## App Identity
+<p align="center">
+  <b>Plan tomorrow | Execute today</b><br>
+  Minimal • Offline • Arabic-first • Flutter
+</p>
 
-- App name: `Mongez`
-- Android package: `com.adamg00d.mongez`
-- Main target: Android
+<p align="center">
+  <img src="https://img.shields.io/badge/Flutter-3.x-blue?logo=flutter">
+  <img src="https://img.shields.io/badge/Platform-Android-green">
+  <img src="https://img.shields.io/badge/State%20Management-Provider-orange">
+  <img src="https://img.shields.io/badge/License-MIT-black">
+</p>
 
-## Core Features
+<p align="center">
+  <a href="https://github.com/AdamG00D/Mongez_App/releases/latest">
+    <img src="https://img.shields.io/badge/Download-Latest%20APK-success?style=for-the-badge&logo=android" alt="Download Latest APK">
+  </a>
+</p>
 
-- Day-based task browsing (previous, next, date picker, quick return).
-- Task types:
+---
+
+## 🚀 What is Mongez?
+
+**Mongez** is a simple but powerful todo app built around one idea:
+
+> Plan your next day before going to sleep.
+
+Instead of starting your day confused, you wake up with a clear plan and priorities.
+
+---
+
+## 🧠 The Idea Behind It
+
+Mongez is inspired by well-known productivity practices like:
+
+- Planning your next day before sleep
+- Focusing on a small number of important tasks
+- Reducing decision fatigue in the morning
+
+The goal is simple:
+Start your day with clarity, not confusion.
+
+---
+
+## ✨ Why Mongez?
+
+- Opens on **tomorrow by default**
+- Designed for a **night planning mindset**
+- Fully **offline-first**
+- Built with **Arabic RTL support**
+- Clean, minimal, distraction-free UI
+- Interactive **Android home widget**
+
+---
+
+## ⚡ Smart Workflow
+
+Mongez separates planning from execution:
+
+- Inside the app → you plan **tomorrow**
+- On the home widget → you focus on **today**
+
+This helps you:
+- Think clearly at night
+- Execute quickly during the day
+
+This creates a clear separation between planning and execution.
+
+---
+
+## 📱 Download
+
+The latest Android build is always available from the latest release page:
+
+**[Download the latest APK](https://github.com/AdamG00D/Mongez_App/releases/latest)**
+
+---
+
+## 🧠 Core Features
+
+- 📅 Navigate between days (previous / next / date picker)
+- 📝 Task types:
   - Normal
   - Daily
-  - Weekly (any day in week / selected weekdays)
-- Add, edit, complete, uncomplete tasks.
-- Completion history screen.
-- Theme modes: Light / Dark / System.
-- Android Home Screen Widget with interactive task toggle.
-- Local persistence (no internet required).
-- Scheduled local notifications for timed tasks.
+  - Weekly (flexible scheduling)
+- ✅ Complete / uncomplete tasks
+- 📊 History tracking
+- 🎨 Light / Dark / System theme
+- 📱 Android Home Widget (interactive)
+- 🔔 Local notifications
+- 💾 Offline storage
 
-## Tech Stack
+---
 
-- Flutter + Dart
-- State management: `provider`
-- Local storage: `shared_preferences`
-- Widget bridge: `home_widget`
-- Local notifications: `flutter_local_notifications`
+## 🧱 Tech Stack
 
-## Project Structure
+- Flutter
+- Provider
+- SharedPreferences
+- Home Widget
+- Local Notifications
 
-```text
-lib/
-  models/
-  providers/
-  screens/
-  services/
-  theme/
-  utils/
-  widgets/
-```
+---
 
-## Run Locally
+## ⚡ Quick Start
 
 ```bash
 flutter pub get
 flutter run
 ```
 
-## Build APK
+---
 
-```bash
-flutter build apk --release
-```
+## 🗺 Roadmap
 
-Output:
-- `build/app/outputs/flutter-apk/app-release.apk`
+- Improve widget performance
+- Enhance recurring task system
+- Add backup & restore
+- UI/UX improvements
 
-### Production Signing (Recommended)
+---
 
-1. Generate keystore:
-```bash
-keytool -genkey -v -keystore android/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
-```
+## 🤝 Contributing
 
-2. Create `android/key.properties` from `android/key.properties.example` and set real values.
+Feel free to open issues or submit pull requests.
 
-3. Build signed release APK:
-```bash
-flutter build apk --release
-```
+---
 
-## Quality Checks
+## 📜 License
 
-```bash
-flutter analyze
-flutter test
-```
-
-## GitHub Publish Checklist
-
-1. Make sure `flutter analyze` and `flutter test` pass.
-2. Commit from project root:
-   - `git init`
-   - `git add .`
-   - `git commit -m "Initial Mongez release"`
-3. Create remote repository and push:
-   - `git branch -M main`
-   - `git remote add origin <YOUR_GITHUB_REPO_URL>`
-   - `git push -u origin main`
-
-## Notes
-
-- Widget interactions and notifications work completely offline.
-- If Android launcher caches an old widget layout, remove and re-add the widget after update.
+This project is licensed under the **MIT License**.  
+See the [LICENSE](LICENSE) file for details.
