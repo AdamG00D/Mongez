@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.Paint
 import android.net.Uri
+import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -23,6 +24,8 @@ private data class WidgetTaskItem(
     val id: String,
     val title: String,
     val isDone: Boolean,
+    val time: String,
+    val priority: Int,
 )
 
 private class MongezWidgetFactory(
@@ -52,14 +55,17 @@ private class MongezWidgetFactory(
 
     val task = tasks[position]
     val views = RemoteViews(context.packageName, R.layout.mongez_widget_list_item)
-    views.setTextViewText(R.id.widget_task_check, if (task.isDone) "\u2611" else "\u2610")
+    views.setImageViewResource(
+        R.id.widget_task_check,
+        if (task.isDone) R.drawable.ic_widget_checked else R.drawable.ic_widget_unchecked,
+    )
     views.setTextViewText(R.id.widget_task_title, task.title)
+    views.setTextViewText(R.id.widget_task_time, task.time)
+    views.setViewVisibility(
+        R.id.widget_task_time, if (task.time.isEmpty()) View.GONE else View.VISIBLE)
 
-    val doneColor = Color.parseColor("#76C7FF")
-    val textColor = Color.parseColor("#E8F4FF")
-    val mutedColor = Color.parseColor("#89A8C3")
-
-    views.setTextColor(R.id.widget_task_check, if (task.isDone) doneColor else textColor)
+    val textColor = context.getColor(R.color.widget_text)
+    val mutedColor = context.getColor(R.color.widget_muted)
     views.setTextColor(R.id.widget_task_title, if (task.isDone) mutedColor else textColor)
     views.setInt(
         R.id.widget_task_title,
@@ -67,6 +73,19 @@ private class MongezWidgetFactory(
         if (task.isDone) Paint.STRIKE_THRU_TEXT_FLAG or Paint.ANTI_ALIAS_FLAG
         else Paint.ANTI_ALIAS_FLAG,
     )
+
+    val priorityColor =
+        when (task.priority) {
+          2 -> Color.parseColor("#EF4444")
+          1 -> Color.parseColor("#F59E0B")
+          else -> 0
+        }
+    if (priorityColor != 0 && !task.isDone) {
+      views.setViewVisibility(R.id.widget_task_priority, View.VISIBLE)
+      views.setInt(R.id.widget_task_priority, "setColorFilter", priorityColor)
+    } else {
+      views.setViewVisibility(R.id.widget_task_priority, View.GONE)
+    }
 
     val uri =
         Uri.parse("mongez://toggle")
@@ -119,6 +138,8 @@ private class MongezWidgetFactory(
                 id = id,
                 title = title,
                 isDone = item.optBoolean("done", false),
+                time = item.optString("time", ""),
+                priority = item.optInt("priority", 0),
             ),
         )
       }

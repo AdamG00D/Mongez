@@ -1,102 +1,157 @@
-import 'dart:convert';
 import 'dart:collection';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/app_settings.dart';
 import '../models/completion_record.dart';
+import '../models/goal.dart';
 import '../models/task.dart';
 import '../models/task_type.dart';
+import '../services/backup_service.dart';
 import '../services/local_storage_service.dart';
-import '../services/notification_service.dart';
+import '../services/task_mutations.dart';
 import '../services/widget_sync_service.dart';
 import '../utils/date_helpers.dart';
 
-class TaskProvider extends ChangeNotifier {
-  TaskProvider({
-    required this.storageService,
-    required this.widgetSyncService,
-    required this.notificationService,
+class TypeCounts {
+  const TypeCounts({
+    required this.normal,
+    required this.daily,
+    required this.weekly,
   });
+
+  final int normal;
+  final int daily;
+  final int weekly;
+
+  int get total => normal + daily + weekly;
+
+  int of(TaskType type) => switch (type) {
+    TaskType.normal => normal,
+    TaskType.daily => daily,
+    TaskType.weekly => weekly,
+  };
+}
+
+class TaskStat {
+  const TaskStat(this.title, this.type, this.count);
+
+  final String title;
+  final TaskType type;
+  final int count;
+}
+
+class TaskProvider extends ChangeNotifier {
+  TaskProvider({required this.storageService, required this.widgetSyncService});
 
   final LocalStorageService storageService;
   final WidgetSyncService widgetSyncService;
-  final NotificationService notificationService;
+
+  /// Fired after any change that affects reminders.
+  VoidCallback? onDataChanged;
 
   final List<Task> _tasks = <Task>[];
   final List<CompletionRecord> _history = <CompletionRecord>[];
 
   bool _isLoading = true;
-  DateTime _selectedDate = tomorrowDate();
+  DateTime _selectedDate = todayDate();
 
   bool get isLoading => _isLoading;
   DateTime get selectedDate => _selectedDate;
+  bool get isTodaySelected => isSameDate(_selectedDate, todayDate());
   bool get isTomorrowSelected => isSameDate(_selectedDate, tomorrowDate());
+
+  List<Task> get allTasks => List<Task>.unmodifiable(_tasks);
 
   UnmodifiableListView<CompletionRecord> get history =>
       UnmodifiableListView<CompletionRecord>(_history);
 
-  List<Task> get tasksForSelectedDate {
-    final day = dateOnly(_selectedDate);
+  List<Task> get tasksForSelectedDate =>
+      TaskMutations.tasksForDay(_tasks, _selectedDate);
 
-    final visibleTasks =
-        _tasks.where((Task task) => task.appearsOn(day)).toList()
-          ..sort((Task first, Task second) {
-            final firstTime = first.timeInMinutes ?? 24 * 60 + 1;
-            final secondTime = second.timeInMinutes ?? 24 * 60 + 1;
-            if (firstTime != secondTime) {
-              return firstTime.compareTo(secondTime);
-            }
+  List<Task> tasksForDay(DateTime day) =>
+      TaskMutations.tasksForDay(_tasks, day);
 
-            return first.createdAt.compareTo(second.createdAt);
-          });
-
-    return visibleTasks;
-  }
-
-  Future<void> initialize() async {
+  Future<void> initialize({StartPage startPage = StartPage.auto}) async {
     _isLoading = true;
     notifyListeners();
 
-    final loadedTasks = await storageService.loadTasks();
-    final loadedHistory = await storageService.loadHistory();
-
     _tasks
       ..clear()
-      ..addAll(loadedTasks);
+      ..addAll(await storageService.loadTasks());
     _history
       ..clear()
-      ..addAll(loadedHistory);
+      ..addAll(await storageService.loadHistory());
 
     await _seedDemoDataIfNeeded();
+    if (_ensureSortOrder()) {
+      await storageService.saveTasks(_tasks);
+    }
 
-    _sortHistoryDescending();
+    TaskMutations.sortHistory(_history);
+    _selectedDate = _initialDate(startPage);
     _isLoading = false;
-    _selectedDate = tomorrowDate();
     notifyListeners();
 
     await widgetSyncService.syncTodayTasks(_tasks);
-    await notificationService.syncTaskNotifications(_tasks);
+    onDataChanged?.call();
   }
 
-  void goToPreviousDay() {
-    _selectedDate = dateOnly(_selectedDate.subtract(const Duration(days: 1)));
-    notifyListeners();
+  DateTime _initialDate(StartPage startPage) {
+    return switch (startPage) {
+      StartPage.today => todayDate(),
+      StartPage.tomorrow => tomorrowDate(),
+      // Plan tomorrow in the evening, focus on today otherwise.
+      StartPage.auto =>
+        DateTime.now().hour >= 19 ? tomorrowDate() : todayDate(),
+    };
   }
 
-  void goToNextDay() {
-    _selectedDate = dateOnly(_selectedDate.add(const Duration(days: 1)));
-    notifyListeners();
+  /// Gives legacy tasks a manual order matching their old time-based order.
+  bool _ensureSortOrder() {
+    final missing = _tasks
+        .where((Task task) => task.sortOrder == null)
+        .toList();
+    if (missing.isEmpty) {
+      return false;
+    }
+    missing.sort(compareTasksByTime);
+    var next = _nextSortOrder();
+    for (final task in missing) {
+      final index = _tasks.indexWhere((Task t) => t.id == task.id);
+      _tasks[index] = task.copyWith(sortOrder: next++);
+    }
+    return true;
   }
 
-  void goToTomorrow() {
-    _selectedDate = tomorrowDate();
-    notifyListeners();
+  int _nextSortOrder() {
+    var max = -1;
+    for (final task in _tasks) {
+      final order = task.sortOrder;
+      if (order != null && order > max) {
+        max = order;
+      }
+    }
+    return max + 1;
   }
+
+  // ---------------------------------------------------------------- navigation
+
+  void goToPreviousDay() => setSelectedDate(addDays(_selectedDate, -1));
+
+  void goToNextDay() => setSelectedDate(addDays(_selectedDate, 1));
+
+  void goToToday() => setSelectedDate(todayDate());
+
+  void goToTomorrow() => setSelectedDate(tomorrowDate());
 
   void setSelectedDate(DateTime date) {
     _selectedDate = dateOnly(date);
     notifyListeners();
   }
+
+  // --------------------------------------------------------------------- CRUD
 
   Future<void> addTask({
     required String title,
@@ -105,23 +160,31 @@ class TaskProvider extends ChangeNotifier {
     int? timeInMinutes,
     bool weeklyAnyDay = true,
     Set<int>? weeklyDays,
+    int? weekStartDay,
+    WeeklyReminderMode weeklyReminder = WeeklyReminderMode.everyDayUntilDone,
+    TaskPriority priority = TaskPriority.none,
+    String? note,
   }) async {
-    final now = DateTime.now();
     final task = Task(
       id: _generateId('task'),
       title: title.trim(),
       type: type,
       scheduledDate: dateOnly(date),
       timeInMinutes: timeInMinutes,
-      createdAt: now,
+      createdAt: DateTime.now(),
       weeklyAnyDay: type == TaskType.weekly ? weeklyAnyDay : true,
       weeklyDays: type == TaskType.weekly && !weeklyAnyDay
           ? (weeklyDays ?? <int>{})
           : <int>{},
+      weekStartDay: type == TaskType.weekly ? weekStartDay : null,
+      weeklyReminder: weeklyReminder,
+      sortOrder: _nextSortOrder(),
+      priority: priority,
+      note: _cleanNote(note),
     );
 
     _tasks.add(task);
-    await _saveChanges(syncWidget: true);
+    await _saveChanges();
   }
 
   Future<void> updateTask({
@@ -132,6 +195,10 @@ class TaskProvider extends ChangeNotifier {
     int? timeInMinutes,
     bool weeklyAnyDay = true,
     Set<int>? weeklyDays,
+    int? weekStartDay,
+    WeeklyReminderMode weeklyReminder = WeeklyReminderMode.everyDayUntilDone,
+    TaskPriority priority = TaskPriority.none,
+    String? note,
   }) async {
     final index = _tasks.indexWhere((Task task) => task.id == taskId);
     if (index == -1) {
@@ -139,6 +206,7 @@ class TaskProvider extends ChangeNotifier {
     }
 
     final current = _tasks[index];
+    final cleanNote = _cleanNote(note);
     var updated = current.copyWith(
       title: title.trim(),
       type: type,
@@ -149,30 +217,97 @@ class TaskProvider extends ChangeNotifier {
       weeklyDays: type == TaskType.weekly && !weeklyAnyDay
           ? (weeklyDays ?? <int>{})
           : <int>{},
+      weekStartDay: type == TaskType.weekly ? weekStartDay : null,
+      clearWeekStartDay: type != TaskType.weekly || weekStartDay == null,
+      weeklyReminder: weeklyReminder,
+      priority: priority,
+      note: cleanNote,
+      clearNote: cleanNote == null,
     );
 
     if (current.type != type) {
+      // Completion state is type-specific; history stays untouched.
       updated = updated.copyWith(
         clearCompletedAt: true,
         completedDays: <String>{},
         completedWeeks: <String>{},
       );
-      _history.removeWhere((CompletionRecord item) => item.taskId == taskId);
     }
 
     _tasks[index] = updated;
-    _sortHistoryDescending();
-    await _saveChanges(syncWidget: true);
+    await _saveChanges();
   }
 
-  Future<void> deleteTask(String taskId) async {
-    _tasks.removeWhere((Task task) => task.id == taskId);
-    _history.removeWhere((CompletionRecord item) => item.taskId == taskId);
-    await _saveChanges(syncWidget: true);
+  /// Deletes the task. Its history records are kept permanently.
+  /// Returns the removed task so the UI can offer "undo".
+  Future<Task?> deleteTask(String taskId) async {
+    final index = _tasks.indexWhere((Task task) => task.id == taskId);
+    if (index == -1) {
+      return null;
+    }
+    final removed = _tasks.removeAt(index);
+    await _saveChanges();
+    return removed;
   }
 
-  Future<void> toggleTask(Task task, bool isCompleted) async {
-    await _toggleTaskForDate(
+  Future<void> restoreTask(Task task) async {
+    if (_tasks.any((Task t) => t.id == task.id)) {
+      return;
+    }
+    _tasks.add(task);
+    await _saveChanges();
+  }
+
+  /// Moves a one-off task to another day (default: the day after).
+  Future<void> postponeTask(String taskId, {int days = 1}) async {
+    final index = _tasks.indexWhere((Task task) => task.id == taskId);
+    if (index == -1 || !_tasks[index].isNormal) {
+      return;
+    }
+    final task = _tasks[index];
+    _tasks[index] = task.copyWith(
+      scheduledDate: addDays(task.scheduledDate, days),
+      clearCompletedAt: true,
+    );
+    await _saveChanges();
+  }
+
+  /// Moves every unfinished one-off task of [day] to the following day.
+  Future<int> carryOverUnfinished(DateTime day) async {
+    var moved = 0;
+    for (var i = 0; i < _tasks.length; i++) {
+      final task = _tasks[i];
+      if (task.isNormal && task.appearsOn(day) && !task.isCompletedOn(day)) {
+        _tasks[i] = task.copyWith(scheduledDate: addDays(day, 1));
+        moved++;
+      }
+    }
+    if (moved > 0) {
+      await _saveChanges();
+    }
+    return moved;
+  }
+
+  Future<void> duplicateTaskTo(String taskId, DateTime day) async {
+    final index = _tasks.indexWhere((Task task) => task.id == taskId);
+    if (index == -1) {
+      return;
+    }
+    final source = _tasks[index];
+    await addTask(
+      title: source.title,
+      date: day,
+      type: TaskType.normal,
+      timeInMinutes: source.timeInMinutes,
+      priority: source.priority,
+      note: source.note,
+    );
+  }
+
+  // ------------------------------------------------------------- completion
+
+  Future<void> toggleTask(Task task, bool isCompleted) {
+    return toggleTaskByIdForDate(
       taskId: task.id,
       day: _selectedDate,
       forceValue: isCompleted,
@@ -184,67 +319,168 @@ class TaskProvider extends ChangeNotifier {
     required DateTime day,
     bool? forceValue,
   }) async {
-    await _toggleTaskForDate(taskId: taskId, day: day, forceValue: forceValue);
-  }
-
-  Future<void> _toggleTaskForDate({
-    required String taskId,
-    required DateTime day,
-    bool? forceValue,
-  }) async {
-    final taskIndex = _tasks.indexWhere((Task element) => element.id == taskId);
-    if (taskIndex == -1) {
-      return;
-    }
-
-    final activeDay = dateOnly(day);
-    final currentTask = _tasks[taskIndex];
-    if (!currentTask.appearsOn(activeDay)) {
-      return;
-    }
-
-    final isCompleted = forceValue ?? !currentTask.isCompletedOn(activeDay);
-    final updatedTask = currentTask.toggleCompletionForDay(
-      activeDay,
-      isCompleted,
+    final updated = TaskMutations.toggle(
+      tasks: _tasks,
+      history: _history,
+      taskId: taskId,
+      day: day,
+      forceValue: forceValue,
     );
-    _tasks[taskIndex] = updatedTask;
-
-    final completionDay = updatedTask.isNormal
-        ? dateOnly(updatedTask.scheduledDate)
-        : activeDay;
-    final recordId = _historyId(updatedTask, activeDay);
-
-    if (isCompleted) {
-      final record = CompletionRecord(
-        id: recordId,
-        taskId: updatedTask.id,
-        taskTitle: updatedTask.title,
-        taskType: updatedTask.type,
-        completedAt: DateTime.now(),
-        completedForDate: completionDay,
-        taskTimeInMinutes: updatedTask.timeInMinutes,
-      );
-
-      final recordIndex = _history.indexWhere(
-        (CompletionRecord item) => item.id == recordId,
-      );
-      if (recordIndex == -1) {
-        _history.add(record);
-      } else {
-        _history[recordIndex] = record;
-      }
-    } else {
-      _history.removeWhere((CompletionRecord item) => item.id == recordId);
+    if (updated == null) {
+      return;
     }
-
-    _sortHistoryDescending();
-    await _saveChanges(syncWidget: true);
+    await _saveChanges();
   }
 
-  Future<void> refreshWidget() async {
-    await widgetSyncService.syncTodayTasks(_tasks);
+  // ---------------------------------------------------------------- ordering
+
+  /// Reorders the visible tasks of the selected day. Hidden tasks (other days)
+  /// keep their relative positions.
+  Future<void> reorderVisible(
+    List<Task> visible,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    if (oldIndex == newIndex || visible.isEmpty) {
+      return;
+    }
+    final reordered = List<Task>.of(visible);
+    final moved = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex.clamp(0, reordered.length), moved);
+    await _applyVisibleOrder(reordered);
   }
+
+  Future<void> sortSelectedDayByTime() async {
+    final visible = tasksForSelectedDate..sort(compareTasksByTime);
+    await _applyVisibleOrder(visible);
+  }
+
+  Future<void> sortSelectedDayByPriority() async {
+    final visible = tasksForSelectedDate
+      ..sort((Task a, Task b) {
+        final byPriority = b.priority.index.compareTo(a.priority.index);
+        return byPriority != 0 ? byPriority : compareTasksByTime(a, b);
+      });
+    await _applyVisibleOrder(visible);
+  }
+
+  Future<void> _applyVisibleOrder(List<Task> reorderedVisible) async {
+    final all = List<Task>.of(_tasks)..sort(compareTasksForDisplay);
+    final visibleIds = reorderedVisible.map((Task t) => t.id).toSet();
+    final slots = <int>[];
+    for (var i = 0; i < all.length; i++) {
+      if (visibleIds.contains(all[i].id)) {
+        slots.add(i);
+      }
+    }
+    for (var i = 0; i < slots.length && i < reorderedVisible.length; i++) {
+      all[slots[i]] = reorderedVisible[i];
+    }
+    final orderById = <String, int>{
+      for (var i = 0; i < all.length; i++) all[i].id: i,
+    };
+    for (var i = 0; i < _tasks.length; i++) {
+      _tasks[i] = _tasks[i].copyWith(sortOrder: orderById[_tasks[i].id]);
+    }
+    await _saveChanges(remindersAffected: false);
+  }
+
+  // -------------------------------------------------------------------- stats
+
+  TypeCounts get completionCounts {
+    var normal = 0;
+    var daily = 0;
+    var weekly = 0;
+    for (final record in _history) {
+      switch (record.taskType) {
+        case TaskType.normal:
+          normal++;
+        case TaskType.daily:
+          daily++;
+        case TaskType.weekly:
+          weekly++;
+      }
+    }
+    return TypeCounts(normal: normal, daily: daily, weekly: weekly);
+  }
+
+  Set<String> get _activeDayKeys => _history
+      .map((CompletionRecord record) => dateKey(record.completedAt))
+      .toSet();
+
+  int get currentStreak {
+    final days = _activeDayKeys;
+    var cursor = todayDate();
+    if (!days.contains(dateKey(cursor))) {
+      cursor = addDays(cursor, -1);
+    }
+    var streak = 0;
+    while (days.contains(dateKey(cursor))) {
+      streak++;
+      cursor = addDays(cursor, -1);
+    }
+    return streak;
+  }
+
+  int get bestStreak {
+    final days = _activeDayKeys.map(dateFromKey).toList()..sort();
+    var best = 0;
+    var run = 0;
+    DateTime? previous;
+    for (final day in days) {
+      if (previous != null && isSameDate(addDays(previous, 1), day)) {
+        run++;
+      } else {
+        run = 1;
+      }
+      if (run > best) {
+        best = run;
+      }
+      previous = day;
+    }
+    return best;
+  }
+
+  /// Completions per day for the last [days] days (oldest first).
+  List<int> completionsPerDay(int days) {
+    final today = todayDate();
+    final counts = <String, int>{};
+    for (final record in _history) {
+      final key = dateKey(record.completedAt);
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return List<int>.generate(
+      days,
+      (int i) => counts[dateKey(addDays(today, i - days + 1))] ?? 0,
+    );
+  }
+
+  int completionsSince(DateTime since) => _history
+      .where((CompletionRecord record) => !record.completedAt.isBefore(since))
+      .length;
+
+  List<TaskStat> topTasks({int limit = 5}) {
+    final counts = <String, TaskStat>{};
+    for (final record in _history) {
+      final key = '${record.taskTitle}|${record.taskType.storageValue}';
+      final current = counts[key];
+      counts[key] = TaskStat(
+        record.taskTitle,
+        record.taskType,
+        (current?.count ?? 0) + 1,
+      );
+    }
+    final list = counts.values.toList()
+      ..sort((TaskStat a, TaskStat b) => b.count.compareTo(a.count));
+    return list.take(limit).toList();
+  }
+
+  // -------------------------------------------------------------- sync & io
+
+  Future<void> refreshWidget() => widgetSyncService.syncTodayTasks(_tasks);
+
+  Future<bool> requestPinWidget({bool summary = false}) =>
+      widgetSyncService.requestPinWidget(summary: summary);
 
   Future<void> reloadFromStorageIfChanged() async {
     final loadedTasks = await storageService.loadTasks();
@@ -264,27 +500,51 @@ class TaskProvider extends ChangeNotifier {
     _history
       ..clear()
       ..addAll(loadedHistory);
-    _sortHistoryDescending();
+    TaskMutations.sortHistory(_history);
     notifyListeners();
   }
 
-  Future<void> requestNotificationPermissions() async {
-    await notificationService.requestPermissions();
-    await notificationService.syncTaskNotifications(_tasks);
+  /// Called after the week-start setting changes.
+  Future<void> onWeekStartChanged() async {
+    notifyListeners();
+    await widgetSyncService.syncTodayTasks(_tasks);
   }
 
-  Future<bool> requestPinWidget() {
-    return widgetSyncService.requestPinWidget();
+  BackupData backupData(List<Goal> goals) => BackupData(
+    tasks: List<Task>.of(_tasks),
+    history: List<CompletionRecord>.of(_history),
+    goals: goals,
+  );
+
+  /// Replaces tasks with the backup's tasks. History is merged (never lost).
+  Future<void> importBackup(BackupData data) async {
+    _tasks
+      ..clear()
+      ..addAll(data.tasks);
+    _ensureSortOrder();
+    final ids = _history.map((CompletionRecord r) => r.id).toSet();
+    for (final record in data.history) {
+      if (!ids.contains(record.id)) {
+        _history.add(record);
+      }
+    }
+    TaskMutations.sortHistory(_history);
+    await _saveChanges();
   }
 
-  Future<void> _saveChanges({required bool syncWidget}) async {
+  Future<void> _saveChanges({bool remindersAffected = true}) async {
     notifyListeners();
     await storageService.saveTasks(_tasks);
     await storageService.saveHistory(_history);
-    await notificationService.syncTaskNotifications(_tasks);
-    if (syncWidget) {
-      await widgetSyncService.syncTodayTasks(_tasks);
+    await widgetSyncService.syncTodayTasks(_tasks);
+    if (remindersAffected) {
+      onDataChanged?.call();
     }
+  }
+
+  String? _cleanNote(String? note) {
+    final trimmed = note?.trim();
+    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
   }
 
   Future<void> _seedDemoDataIfNeeded() async {
@@ -294,28 +554,30 @@ class TaskProvider extends ChangeNotifier {
     }
 
     final now = DateTime.now();
-    final today = dateOnly(now);
-    final tomorrow = tomorrowDate();
+    final today = todayDate();
 
     _tasks.addAll(<Task>[
       Task(
         id: _generateId('task'),
         title: 'تخطيط أولويات الغد',
-        type: TaskType.normal,
-        scheduledDate: tomorrow,
+        type: TaskType.daily,
+        scheduledDate: today,
         timeInMinutes: 21 * 60 + 30,
         createdAt: now,
+        sortOrder: 0,
+        priority: TaskPriority.medium,
       ),
       Task(
         id: _generateId('task'),
-        title: 'شرب الماء 8 أكواب',
+        title: 'شرب 8 أكواب ماء',
         type: TaskType.daily,
         scheduledDate: today,
         createdAt: now,
+        sortOrder: 1,
       ),
       Task(
         id: _generateId('task'),
-        title: 'تمارين خفيفة',
+        title: 'تمارين خفيفة 20 دقيقة',
         type: TaskType.weekly,
         scheduledDate: today,
         weeklyAnyDay: false,
@@ -325,34 +587,19 @@ class TaskProvider extends ChangeNotifier {
           DateTime.wednesday,
         },
         createdAt: now,
+        sortOrder: 2,
       ),
     ]);
 
     await storageService.setDemoSeeded();
     await storageService.saveTasks(_tasks);
-    await notificationService.syncTaskNotifications(_tasks);
   }
 
-  void _sortHistoryDescending() {
-    _history.sort(
-      (CompletionRecord first, CompletionRecord second) =>
-          second.completedAt.compareTo(first.completedAt),
-    );
-  }
-
-  String _historyId(Task task, DateTime day) {
-    if (task.isWeekly) {
-      return '${task.id}-${weekKey(day)}';
-    }
-    if (task.isDaily) {
-      return '${task.id}-${dateKey(day)}';
-    }
-    return '${task.id}-${dateKey(task.scheduledDate)}';
-  }
+  int _idCounter = 0;
 
   String _generateId(String prefix) {
     final stamp = DateTime.now().microsecondsSinceEpoch;
-    return '$prefix-$stamp-${_tasks.length + _history.length}';
+    return '$prefix-$stamp-${_idCounter++}';
   }
 
   String _fingerprintTasks(List<Task> tasks) {

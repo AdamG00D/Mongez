@@ -14,6 +14,11 @@ class Task {
     this.completedWeeks = const <String>{},
     this.weeklyAnyDay = true,
     this.weeklyDays = const <int>{},
+    this.weekStartDay,
+    this.weeklyReminder = WeeklyReminderMode.everyDayUntilDone,
+    this.sortOrder,
+    this.priority = TaskPriority.none,
+    this.note,
   });
 
   final String id;
@@ -24,24 +29,39 @@ class Task {
   final DateTime createdAt;
   final DateTime? completedAt;
   final Set<String> completedDays;
+
+  /// For weekly tasks: date keys (yyyy-MM-dd) of the days the task was done.
+  /// Legacy entries use the "W-yyyy-MM-dd" (Monday based) format; both are
+  /// resolved to the week that contains that date.
   final Set<String> completedWeeks;
   final bool weeklyAnyDay;
   final Set<int> weeklyDays;
+
+  /// First day of the week for this weekly task. `null` = global setting.
+  final int? weekStartDay;
+  final WeeklyReminderMode weeklyReminder;
+
+  /// Manual ordering position. `null` for legacy tasks (sorted by time).
+  final int? sortOrder;
+  final TaskPriority priority;
+  final String? note;
 
   bool get isNormal => type == TaskType.normal;
   bool get isDaily => type == TaskType.daily;
   bool get isWeekly => type == TaskType.weekly;
 
+  int get effectiveWeekStart => weekStartDay ?? WeekSettings.defaultStartDay;
+
   bool appearsOn(DateTime day) {
     final normalizedDay = dateOnly(day);
     final normalizedScheduledDate = dateOnly(scheduledDate);
 
-    if (normalizedDay.isBefore(normalizedScheduledDate)) {
-      return false;
+    if (isNormal) {
+      return isSameDate(normalizedScheduledDate, normalizedDay);
     }
 
-    if (isDaily) {
-      return true;
+    if (normalizedDay.isBefore(normalizedScheduledDate)) {
+      return false;
     }
 
     if (isWeekly) {
@@ -51,7 +71,8 @@ class Task {
       return weeklyDays.contains(normalizedDay.weekday);
     }
 
-    return isSameDate(normalizedScheduledDate, normalizedDay);
+    // Daily
+    return true;
   }
 
   bool isCompletedOn(DateTime day) {
@@ -62,7 +83,10 @@ class Task {
     }
 
     if (isWeekly) {
-      return completedWeeks.contains(weekKey(normalizedDay));
+      return completedWeeks.any(
+        (String key) =>
+            isInWeek(dateFromKey(key), normalizedDay, effectiveWeekStart),
+      );
     }
 
     return isSameDate(normalizedDay, scheduledDate) && completedAt != null;
@@ -83,12 +107,13 @@ class Task {
     }
 
     if (isWeekly) {
-      final updatedWeeks = Set<String>.from(completedWeeks);
-      final key = weekKey(normalizedDay);
+      final updatedWeeks = Set<String>.from(completedWeeks)
+        ..removeWhere(
+          (String key) =>
+              isInWeek(dateFromKey(key), normalizedDay, effectiveWeekStart),
+        );
       if (completed) {
-        updatedWeeks.add(key);
-      } else {
-        updatedWeeks.remove(key);
+        updatedWeeks.add(dateKey(normalizedDay));
       }
       return copyWith(completedWeeks: updatedWeeks);
     }
@@ -102,6 +127,30 @@ class Task {
     }
 
     return copyWith(clearCompletedAt: true);
+  }
+
+  /// Identifier of the occurrence (day/week) that [day] belongs to. Used to
+  /// build history record ids.
+  String occurrenceKey(DateTime day) {
+    if (isWeekly) {
+      return weekKey(day, effectiveWeekStart);
+    }
+    if (isDaily) {
+      return dateKey(day);
+    }
+    return dateKey(scheduledDate);
+  }
+
+  /// Whether [recordDay] (completedForDate of a history record) belongs to the
+  /// same occurrence as [day].
+  bool sameOccurrence(DateTime recordDay, DateTime day) {
+    if (isWeekly) {
+      return isInWeek(recordDay, day, effectiveWeekStart);
+    }
+    if (isDaily) {
+      return isSameDate(recordDay, day);
+    }
+    return true;
   }
 
   Task copyWith({
@@ -118,6 +167,13 @@ class Task {
     Set<String>? completedWeeks,
     bool? weeklyAnyDay,
     Set<int>? weeklyDays,
+    int? weekStartDay,
+    bool clearWeekStartDay = false,
+    WeeklyReminderMode? weeklyReminder,
+    int? sortOrder,
+    TaskPriority? priority,
+    String? note,
+    bool clearNote = false,
   }) {
     return Task(
       id: id ?? this.id,
@@ -131,6 +187,13 @@ class Task {
       completedWeeks: completedWeeks ?? this.completedWeeks,
       weeklyAnyDay: weeklyAnyDay ?? this.weeklyAnyDay,
       weeklyDays: weeklyDays ?? this.weeklyDays,
+      weekStartDay: clearWeekStartDay
+          ? null
+          : (weekStartDay ?? this.weekStartDay),
+      weeklyReminder: weeklyReminder ?? this.weeklyReminder,
+      sortOrder: sortOrder ?? this.sortOrder,
+      priority: priority ?? this.priority,
+      note: clearNote ? null : (note ?? this.note),
     );
   }
 
@@ -147,6 +210,11 @@ class Task {
       'completedWeeks': completedWeeks.toList(),
       'weeklyAnyDay': weeklyAnyDay,
       'weeklyDays': weeklyDays.toList(),
+      'weekStartDay': weekStartDay,
+      'weeklyReminder': weeklyReminder.storageValue,
+      'sortOrder': sortOrder,
+      'priority': priority.index,
+      'note': note,
     };
   }
 
@@ -173,12 +241,14 @@ class Task {
       );
     }
 
+    final note = (json['note'] as String?)?.trim();
+
     return Task(
       id: json['id'] as String,
       title: json['title'] as String,
       type: taskTypeFromStorage((json['type'] as String?) ?? 'normal'),
       scheduledDate: DateTime.parse(json['scheduledDate'] as String),
-      timeInMinutes: json['timeInMinutes'] as int?,
+      timeInMinutes: (json['timeInMinutes'] as num?)?.toInt(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       completedAt: json['completedAt'] == null
           ? null
@@ -187,6 +257,39 @@ class Task {
       completedWeeks: parsedWeeks,
       weeklyAnyDay: json['weeklyAnyDay'] as bool? ?? true,
       weeklyDays: parsedWeeklyDays,
+      weekStartDay: (json['weekStartDay'] as num?)?.toInt(),
+      weeklyReminder: weeklyReminderModeFromStorage(
+        json['weeklyReminder'] as String?,
+      ),
+      sortOrder: (json['sortOrder'] as num?)?.toInt(),
+      priority: taskPriorityFromIndex((json['priority'] as num?)?.toInt()),
+      note: (note == null || note.isEmpty) ? null : note,
     );
   }
+}
+
+/// Shared ordering used by the app list and the home-screen widget.
+/// Manual order first; tasks without an order fall back to time then creation.
+int compareTasksForDisplay(Task first, Task second) {
+  final a = first.sortOrder;
+  final b = second.sortOrder;
+  if (a != null && b != null && a != b) {
+    return a.compareTo(b);
+  }
+  if (a != null && b == null) {
+    return -1;
+  }
+  if (a == null && b != null) {
+    return 1;
+  }
+  return compareTasksByTime(first, second);
+}
+
+int compareTasksByTime(Task first, Task second) {
+  final firstTime = first.timeInMinutes ?? 24 * 60 + 1;
+  final secondTime = second.timeInMinutes ?? 24 * 60 + 1;
+  if (firstTime != secondTime) {
+    return firstTime.compareTo(secondTime);
+  }
+  return first.createdAt.compareTo(second.createdAt);
 }

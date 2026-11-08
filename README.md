@@ -10,23 +10,23 @@ Mongez is a mobile-first Flutter todo app focused on planning and tracking tasks
 
 ## Core Features
 
-- Day-based task browsing (previous, next, date picker, quick return).
-- Task types:
-  - Normal
-  - Daily
-  - Weekly (any day in week / selected weekdays)
-- Add, edit, complete, uncomplete tasks.
-- Completion history screen.
-- Theme modes: Light / Dark / System.
-- Android Home Screen Widget with interactive task toggle.
-- Local persistence (no internet required).
-- Scheduled local notifications for timed tasks.
+- Tasks: normal, daily and weekly; priority, notes, drag-and-drop ordering, swipe actions with undo,
+  postpone / carry over.
+- Weekly tasks with configurable first day of week and "remind until done" modes.
+- Yearly goals with progress, motivation and weekly reminders.
+- Permanent completion history with per-type counters, streaks and charts.
+- Screen time (Android Usage Access): screen-on time, unlocks, per-app usage and daily limits.
+- 9 color themes, light/dark/AMOLED, built-in or photo backgrounds.
+- Two Android home-screen widgets (task list + summary).
+- Local notifications with a "Done ✓" action, follow-ups and an evening planning reminder.
+- JSON backup / restore. Fully offline.
 
 ## Tech Stack
 
 - Flutter + Dart
 - State management: `provider`
 - Local storage: `shared_preferences`
+- Screen time: native `UsageStatsManager` channel (`ScreenTimeChannel.kt`)
 - Widget bridge: `home_widget`
 - Local notifications: `flutter_local_notifications`
 
@@ -50,28 +50,18 @@ flutter pub get
 flutter run
 ```
 
-## Build APK
+## Build release
+
+Signing is read from `android/key.properties` (git-ignored). Then:
 
 ```bash
-flutter build apk --release
+./build_release.sh        # signed APKs (universal + per-ABI)
+./build_release.sh aab    # signed App Bundle for Google Play
 ```
 
-Output:
+Outputs:
 - `build/app/outputs/flutter-apk/app-release.apk`
-
-### Production Signing (Recommended)
-
-1. Generate keystore:
-```bash
-keytool -genkey -v -keystore android/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
-```
-
-2. Create `android/key.properties` from `android/key.properties.example` and set real values.
-
-3. Build signed release APK:
-```bash
-flutter build apk --release
-```
+- `build/app/outputs/bundle/release/app-release.aab`
 
 ## Quality Checks
 
