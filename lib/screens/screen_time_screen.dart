@@ -323,7 +323,7 @@ class _UsageContent extends StatelessWidget {
                     .toList(),
                 labels: List<String>.generate(
                   7,
-                  (int i) => arabicWeekDayShort[addDays(today, i - 6).weekday]!,
+                  (int i) => arabicWeekDayNames[addDays(today, i - 6).weekday]!,
                 ),
                 highlightIndex: 6 - daysBetween(selected, today),
                 valueLabel: (double h) =>

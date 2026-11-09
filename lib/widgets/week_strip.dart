@@ -139,7 +139,7 @@ class _DayCell extends StatelessWidget {
     final allDone = total > 0 && done == total;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 2.5),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
@@ -169,14 +169,22 @@ class _DayCell extends StatelessWidget {
           ),
           child: Column(
             children: <Widget>[
-              Text(
-                arabicWeekDayShort[day.weekday] ?? '',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: selected
-                      ? Colors.white.withValues(alpha: 0.85)
-                      : scheme.onSurfaceVariant,
+              // Full day name, shrunk to fit narrow cells (الأربعاء, الثلاثاء).
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    arabicWeekDayNames[day.weekday] ?? '',
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: selected
+                          ? Colors.white.withValues(alpha: 0.9)
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 2),

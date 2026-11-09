@@ -400,16 +400,20 @@ class MiniBarChart extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    labels[i],
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: highlighted
-                          ? FontWeight.w800
-                          : FontWeight.w600,
-                      color: highlighted
-                          ? scheme.onSurface
-                          : scheme.onSurfaceVariant,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      labels[i],
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: highlighted
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                        color: highlighted
+                            ? scheme.onSurface
+                            : scheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],

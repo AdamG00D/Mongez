@@ -18,7 +18,7 @@ import '../widgets/common.dart';
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
-  static const String appVersion = '2.0.0';
+  static const String appVersion = '2.0.1';
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -459,7 +459,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: s.celebrate,
                     onChanged: (bool v) =>
                         set((AppSettings c) => c.copyWith(celebrate: v)),
-                    title: const Text('احتفال عند إنجاز كل المهام'),
+                    title: const Text('الاحتفال والأصوات'),
+                    subtitle: const Text(
+                      'صوت عند إنجاز كل مهمة، واحتفال بصوت عند إنهاء مهام اليوم أو تحقيق هدف',
+                    ),
                   ),
                 ],
               ),

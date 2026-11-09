@@ -9,6 +9,7 @@ import '../app_navigation.dart';
 import '../models/task.dart';
 import '../providers/settings_provider.dart';
 import '../providers/task_provider.dart';
+import '../services/system_service.dart';
 import '../utils/date_helpers.dart';
 import '../utils/motivation.dart';
 import '../widgets/add_task_sheet.dart';
@@ -65,42 +66,106 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _toggle(TaskProvider provider, Task task, bool value) async {
-    final day = provider.selectedDate;
-    await provider.toggleTask(task, value);
-    if (!mounted || !value) {
-      return;
-    }
-    final tasks = provider.tasksForDay(day);
-    final allDone =
-        tasks.isNotEmpty && tasks.every((Task t) => t.isCompletedOn(day));
-    if (allDone && context.read<SettingsProvider>().settings.celebrate) {
-      HapticFeedback.mediumImpact();
-      showCelebration(context);
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(content: Text('أنجزت كل مهام اليوم! 🎉 استمر هكذا')),
-        );
-    }
-  }
-
-  Future<void> _delete(TaskProvider provider, Task task) async {
-    final removed = await provider.deleteTask(task.id);
-    if (removed == null || !mounted) {
-      return;
-    }
+  void _snack(String text, {SnackBarAction? action}) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: const Text('تم حذف المهمة (السجل محفوظ)'),
-          action: SnackBarAction(
-            label: 'تراجع',
-            onPressed: () => provider.restoreTask(removed),
-          ),
+          content: Text(text),
+          action: action,
+          // A SnackBar with an action stays until dismissed by default.
+          persist: false,
+          duration: Duration(seconds: action == null ? 2 : 4),
         ),
       );
+  }
+
+  Future<void> _toggle(TaskProvider provider, Task task, bool value) async {
+    final day = provider.selectedDate;
+    final wasDone = task.isCompletedOn(day);
+    await provider.toggleTask(task, value);
+    if (!mounted || !value || wasDone) {
+      return;
+    }
+    final celebrate = context.read<SettingsProvider>().settings.celebrate;
+    final tasks = provider.tasksForDay(day);
+    final allDone =
+        tasks.isNotEmpty && tasks.every((Task t) => t.isCompletedOn(day));
+    if (!celebrate) {
+      return;
+    }
+    if (allDone) {
+      HapticFeedback.mediumImpact();
+      SystemService.playCelebrate();
+      showCelebration(context);
+      _snack('أنجزت كل مهام اليوم! 🎉 استمر هكذا');
+    } else {
+      SystemService.playDone();
+    }
+  }
+
+  Future<void> _delete(TaskProvider provider, Task task) async {
+    final hadHistory = provider.historyCountForTask(task.id) > 0;
+    final removed = await provider.deleteTask(task.id);
+    if (removed == null || !mounted) {
+      return;
+    }
+    _snack(
+      hadHistory
+          ? 'تم حذف المهمة (إنجازاتها السابقة باقية في السجل)'
+          : 'تم حذف المهمة',
+      action: SnackBarAction(
+        label: 'تراجع',
+        onPressed: () => provider.restoreTask(removed),
+      ),
+    );
+  }
+
+  Future<void> _deleteWithHistory(TaskProvider provider, Task task) async {
+    final count = provider.historyCountForTask(task.id);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('حذف المهمة وسجلها؟'),
+        content: Text(
+          'سيتم حذف "${task.title}" ومعها $count ${count == 1 ? 'إنجاز' : 'إنجازات'} من السجل والعدّادات.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) {
+      return;
+    }
+    final records = await provider.deleteHistoryForTask(task.id);
+    final removed = await provider.deleteTask(task.id);
+    if (!mounted) {
+      return;
+    }
+    _snack(
+      'تم حذف المهمة وسجلها',
+      action: SnackBarAction(
+        label: 'تراجع',
+        onPressed: () async {
+          if (removed != null) {
+            await provider.restoreTask(removed);
+          }
+          await provider.restoreHistory(records);
+        },
+      ),
+    );
   }
 
   Future<void> _openTaskActions(TaskProvider provider, Task task) async {
@@ -152,9 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     close();
                     provider.postponeTask(task.id);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('تم تأجيل المهمة يومًا')),
-                    );
+                    _snack('تم تأجيل المهمة يومًا');
                   },
                 ),
               ListTile(
@@ -163,11 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   close();
                   provider.duplicateTaskTo(task.id, addDays(day, 1));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('تمت إضافة نسخة لليوم التالي'),
-                    ),
-                  );
+                  _snack('تمت إضافة نسخة لليوم التالي');
                 },
               ),
               ListTile(
@@ -186,6 +245,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   _delete(provider, task);
                 },
               ),
+              if (provider.historyCountForTask(task.id) > 0)
+                ListTile(
+                  leading: Icon(
+                    Icons.delete_sweep_rounded,
+                    color: Theme.of(sheetContext).colorScheme.error,
+                  ),
+                  title: Text(
+                    'حذف المهمة وسجلها',
+                    style: TextStyle(
+                      color: Theme.of(sheetContext).colorScheme.error,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'يحذف أيضًا ${provider.historyCountForTask(task.id)} إنجاز من السجل',
+                  ),
+                  onTap: () {
+                    close();
+                    _deleteWithHistory(provider, task);
+                  },
+                ),
               const SizedBox(height: 8),
             ],
           ),
@@ -199,23 +278,27 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (value) {
       case 'time':
         await provider.sortSelectedDayByTime();
+        if (mounted) {
+          _snack('تم ترتيب المهام حسب الوقت');
+        }
       case 'priority':
         await provider.sortSelectedDayByPriority();
+        if (mounted) {
+          _snack('تم ترتيب المهام حسب الأولوية');
+        }
       case 'hide':
         await settings.update(
           (s) => s.copyWith(hideCompleted: !s.hideCompleted),
         );
       case 'carry':
-        final moved = await provider.carryOverUnfinished(provider.selectedDate);
+        final day = provider.selectedDate;
+        final target = TaskProvider.carryTarget(day);
+        final moved = await provider.carryOverUnfinished(day);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                moved == 0
-                    ? 'لا توجد مهام غير منجزة لنقلها'
-                    : 'تم نقل $moved ${moved == 1 ? 'مهمة' : 'مهام'} لليوم التالي',
-              ),
-            ),
+          _snack(
+            moved == 0
+                ? 'لا توجد مهام لمرة واحدة غير منجزة لنقلها. المهام اليومية والأسبوعية تتكرر تلقائيًا.'
+                : 'تم نقل $moved ${moved == 1 ? 'مهمة' : 'مهام'} إلى ${relativeDateLabel(target)}',
           );
         }
     }
@@ -248,21 +331,17 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: provider.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : CustomScrollView(
-              slivers: <Widget>[
-                SliverSafeArea(
-                  bottom: false,
-                  sliver: SliverPadding(
+          : SafeArea(
+              bottom: false,
+              child: CustomScrollView(
+                slivers: <Widget>[
+                  SliverPadding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                     sliver: SliverList.list(
                       children: <Widget>[
                         _Header(
                           onMenu: (String v) => _onMenu(v, provider),
                           hideCompleted: settings.hideCompleted,
-                          canCarry: allTasks.any(
-                            (Task t) =>
-                                t.isNormal && !t.isCompletedOn(selectedDate),
-                          ),
                         ),
                         const SizedBox(height: 12),
                         WeekStrip(
@@ -304,105 +383,101 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                ),
-                if (visibleTasks.isEmpty)
-                  SliverToBoxAdapter(
-                    child: EmptyState(
-                      icon: allTasks.isEmpty
-                          ? Icons.wb_twilight_rounded
-                          : Icons.celebration_rounded,
-                      title: allTasks.isEmpty
-                          ? 'لا توجد مهام لهذا اليوم'
-                          : 'أنجزت كل شيء!',
-                      message: allTasks.isEmpty
-                          ? 'ابدأ بأهم 3 مهام. القائمة القصيرة تُنجز.'
-                          : 'المهام المكتملة مخفية. يمكنك إظهارها من القائمة.',
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    sliver: SliverReorderableList(
-                      itemCount: visibleTasks.length,
-                      onReorderItem: (int oldIndex, int newIndex) {
-                        HapticFeedback.selectionClick();
-                        provider.reorderVisible(
-                          visibleTasks,
-                          oldIndex,
-                          newIndex,
-                        );
-                      },
-                      proxyDecorator:
-                          (Widget child, int index, Animation<double> a) {
-                            return AnimatedBuilder(
-                              animation: a,
-                              builder: (BuildContext context, Widget? c) {
-                                final t = Curves.easeInOut.transform(a.value);
-                                return Transform.scale(
-                                  scale: lerpDouble(1, 1.03, t),
-                                  child: Material(
-                                    color: Colors.transparent,
-                                    elevation: lerpDouble(0, 8, t)!,
-                                    shadowColor: Colors.black26,
-                                    borderRadius: BorderRadius.circular(22),
-                                    child: c,
-                                  ),
-                                );
-                              },
-                              child: child,
-                            );
-                          },
-                      itemBuilder: (BuildContext context, int index) {
-                        final task = visibleTasks[index];
-                        return Padding(
-                          key: ValueKey<String>(task.id),
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: ReorderableDelayedDragStartListener(
-                            index: index,
-                            child: _SwipeableTask(
-                              task: task,
-                              selectedDate: selectedDate,
-                              onToggle: (bool v) => _toggle(provider, task, v),
-                              onDelete: () => _delete(provider, task),
-                              onTap: () => _openTaskActions(provider, task),
-                              dragHandle: ReorderableDragStartListener(
-                                index: index,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                  ),
-                                  child: Icon(
-                                    Icons.drag_indicator_rounded,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant
-                                        .withValues(alpha: 0.6),
+                  if (visibleTasks.isEmpty)
+                    SliverToBoxAdapter(
+                      child: EmptyState(
+                        icon: allTasks.isEmpty
+                            ? Icons.wb_twilight_rounded
+                            : Icons.celebration_rounded,
+                        title: allTasks.isEmpty
+                            ? 'لا توجد مهام لهذا اليوم'
+                            : 'أنجزت كل شيء!',
+                        message: allTasks.isEmpty
+                            ? 'ابدأ بأهم 3 مهام. القائمة القصيرة تُنجز.'
+                            : 'المهام المكتملة مخفية. يمكنك إظهارها من القائمة.',
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverReorderableList(
+                        itemCount: visibleTasks.length,
+                        onReorderItem: (int oldIndex, int newIndex) {
+                          HapticFeedback.selectionClick();
+                          provider.reorderVisible(
+                            visibleTasks,
+                            oldIndex,
+                            newIndex,
+                          );
+                        },
+                        proxyDecorator:
+                            (Widget child, int index, Animation<double> a) {
+                              return AnimatedBuilder(
+                                animation: a,
+                                builder: (BuildContext context, Widget? c) {
+                                  final t = Curves.easeInOut.transform(a.value);
+                                  return Transform.scale(
+                                    scale: lerpDouble(1, 1.03, t),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      elevation: lerpDouble(0, 8, t)!,
+                                      shadowColor: Colors.black26,
+                                      borderRadius: BorderRadius.circular(22),
+                                      child: c,
+                                    ),
+                                  );
+                                },
+                                child: child,
+                              );
+                            },
+                        itemBuilder: (BuildContext context, int index) {
+                          final task = visibleTasks[index];
+                          return Padding(
+                            key: ValueKey<String>(task.id),
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: ReorderableDelayedDragStartListener(
+                              index: index,
+                              child: _SwipeableTask(
+                                task: task,
+                                selectedDate: selectedDate,
+                                onToggle: (bool v) =>
+                                    _toggle(provider, task, v),
+                                onDelete: () => _delete(provider, task),
+                                onTap: () => _openTaskActions(provider, task),
+                                dragHandle: ReorderableDragStartListener(
+                                  index: index,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                    child: Icon(
+                                      Icons.drag_indicator_rounded,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant
+                                          .withValues(alpha: 0.6),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                SliverToBoxAdapter(child: SizedBox(height: 96 + bottomPad)),
-              ],
+                  SliverToBoxAdapter(child: SizedBox(height: 96 + bottomPad)),
+                ],
+              ),
             ),
     );
   }
 }
 
 class _Header extends StatelessWidget {
-  const _Header({
-    required this.onMenu,
-    required this.hideCompleted,
-    required this.canCarry,
-  });
+  const _Header({required this.onMenu, required this.hideCompleted});
 
   final ValueChanged<String> onMenu;
   final bool hideCompleted;
-  final bool canCarry;
 
   @override
   Widget build(BuildContext context) {
@@ -465,12 +540,12 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
-            PopupMenuItem<String>(
+            const PopupMenuItem<String>(
               value: 'carry',
-              enabled: canCarry,
-              child: const ListTile(
+              child: ListTile(
                 leading: Icon(Icons.redo_rounded),
                 title: Text('نقل غير المنجز لليوم التالي'),
+                subtitle: Text('المهام التي لمرة واحدة فقط'),
               ),
             ),
           ],

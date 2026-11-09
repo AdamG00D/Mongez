@@ -238,8 +238,10 @@ class TaskProvider extends ChangeNotifier {
     await _saveChanges();
   }
 
-  /// Deletes the task. Its history records are kept permanently.
-  /// Returns the removed task so the UI can offer "undo".
+  /// Deletes the task. Its history records are kept (completions on earlier
+  /// days stay counted) unless they are removed explicitly with
+  /// [deleteHistoryForTask]. Returns the removed task so the UI can offer
+  /// "undo".
   Future<Task?> deleteTask(String taskId) async {
     final index = _tasks.indexWhere((Task task) => task.id == taskId);
     if (index == -1) {
@@ -248,6 +250,54 @@ class TaskProvider extends ChangeNotifier {
     final removed = _tasks.removeAt(index);
     await _saveChanges();
     return removed;
+  }
+
+  // ------------------------------------------------------------------ history
+
+  /// Number of history records that belong to [taskId].
+  int historyCountForTask(String taskId) =>
+      _history.where((CompletionRecord r) => r.taskId == taskId).length;
+
+  /// Removes one record from the history. The task itself (and whether it is
+  /// checked) is not touched. Returns the removed records for "undo".
+  Future<List<CompletionRecord>> deleteHistoryRecord(String recordId) =>
+      _deleteHistoryWhere((CompletionRecord r) => r.id == recordId);
+
+  /// Removes every history record of [taskId].
+  Future<List<CompletionRecord>> deleteHistoryForTask(String taskId) =>
+      _deleteHistoryWhere((CompletionRecord r) => r.taskId == taskId);
+
+  /// Empties the whole history.
+  Future<List<CompletionRecord>> clearHistory() =>
+      _deleteHistoryWhere((CompletionRecord r) => true);
+
+  Future<List<CompletionRecord>> _deleteHistoryWhere(
+    bool Function(CompletionRecord record) test,
+  ) async {
+    final removed = _history.where(test).toList();
+    if (removed.isEmpty) {
+      return removed;
+    }
+    _history.removeWhere(test);
+    await _saveChanges(remindersAffected: false);
+    return removed;
+  }
+
+  /// Puts back records removed by one of the delete methods above.
+  Future<void> restoreHistory(List<CompletionRecord> records) async {
+    final ids = _history.map((CompletionRecord r) => r.id).toSet();
+    var added = false;
+    for (final record in records) {
+      if (ids.add(record.id)) {
+        _history.add(record);
+        added = true;
+      }
+    }
+    if (!added) {
+      return;
+    }
+    TaskMutations.sortHistory(_history);
+    await _saveChanges(remindersAffected: false);
   }
 
   Future<void> restoreTask(Task task) async {
@@ -272,13 +322,23 @@ class TaskProvider extends ChangeNotifier {
     await _saveChanges();
   }
 
-  /// Moves every unfinished one-off task of [day] to the following day.
+  /// Where [carryOverUnfinished] moves tasks: the day after [day], but never
+  /// into the past (carrying from an old day lands on today).
+  static DateTime carryTarget(DateTime day) {
+    final next = addDays(dateOnly(day), 1);
+    final today = todayDate();
+    return next.isBefore(today) ? today : next;
+  }
+
+  /// Moves every unfinished one-off task of [day] to [carryTarget].
+  /// Daily and weekly tasks repeat by themselves, so they are not moved.
   Future<int> carryOverUnfinished(DateTime day) async {
+    final target = carryTarget(day);
     var moved = 0;
     for (var i = 0; i < _tasks.length; i++) {
       final task = _tasks[i];
       if (task.isNormal && task.appearsOn(day) && !task.isCompletedOn(day)) {
-        _tasks[i] = task.copyWith(scheduledDate: addDays(day, 1));
+        _tasks[i] = task.copyWith(scheduledDate: target);
         moved++;
       }
     }

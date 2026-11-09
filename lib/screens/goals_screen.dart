@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/goal.dart';
 import '../providers/goals_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/system_service.dart';
 import '../utils/motivation.dart';
 import '../widgets/common.dart';
 import '../widgets/goal_sheet.dart';
@@ -18,6 +19,7 @@ class GoalsScreen extends StatelessWidget {
     }
     HapticFeedback.mediumImpact();
     if (context.read<SettingsProvider>().settings.celebrate) {
+      SystemService.playCelebrate();
       showCelebration(context);
     }
     ScaffoldMessenger.of(context)
@@ -25,6 +27,7 @@ class GoalsScreen extends StatelessWidget {
       ..showSnackBar(
         const SnackBar(
           content: Text('حققت هدفًا من أهداف السنة! 🏆 فخورون بك'),
+          duration: Duration(seconds: 3),
         ),
       );
   }

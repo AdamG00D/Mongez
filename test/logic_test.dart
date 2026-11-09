@@ -361,6 +361,82 @@ void main() {
       expect(titles(), containsAll(<String>['B', 'C', 'daily']));
     });
 
+    test(
+      'carry over from a past day lands on today, not in the past',
+      () async {
+        final past = addDays(todayDate(), -3);
+        await provider.addTask(title: 'old', date: past, type: TaskType.normal);
+        expect(TaskProvider.carryTarget(past), todayDate());
+        expect(TaskProvider.carryTarget(todayDate()), addDays(todayDate(), 1));
+        final moved = await provider.carryOverUnfinished(past);
+        expect(moved, 1);
+        expect(titles(), <String>['old']);
+      },
+    );
+
+    test('deleting a daily task keeps completions from earlier days', () async {
+      final start = addDays(todayDate(), -2);
+      await provider.addTask(title: 'd', date: start, type: TaskType.daily);
+      final id = provider.allTasks.single.id;
+      for (final offset in <int>[-2, -1, 0]) {
+        await provider.toggleTaskByIdForDate(
+          taskId: id,
+          day: addDays(todayDate(), offset),
+          forceValue: true,
+        );
+      }
+      expect(provider.historyCountForTask(id), 3);
+      await provider.deleteTask(id);
+      expect(provider.allTasks, isEmpty);
+      expect(provider.history, hasLength(3));
+      expect(provider.completionCounts.daily, 3);
+    });
+
+    test(
+      'delete from history: one record, per task, clear all, undo',
+      () async {
+        await addThree();
+        for (final task in provider.tasksForSelectedDate) {
+          await provider.toggleTask(task, true);
+        }
+        expect(provider.history, hasLength(3));
+
+        final one = await provider.deleteHistoryRecord(
+          provider.history.first.id,
+        );
+        expect(one, hasLength(1));
+        expect(provider.history, hasLength(2));
+        // The task itself stays checked.
+        expect(
+          provider.tasksForSelectedDate.every(
+            (Task t) => t.isCompletedOn(todayDate()),
+          ),
+          isTrue,
+        );
+        await provider.restoreHistory(one);
+        expect(provider.history, hasLength(3));
+
+        final a = provider.tasksForSelectedDate.first;
+        final forA = await provider.deleteHistoryForTask(a.id);
+        expect(forA, hasLength(1));
+        expect(provider.historyCountForTask(a.id), 0);
+
+        final all = await provider.clearHistory();
+        expect(all, hasLength(2));
+        expect(provider.history, isEmpty);
+        expect(provider.completionCounts.total, 0);
+
+        // Persisted.
+        final reloaded = TaskProvider(
+          storageService: LocalStorageService(),
+          widgetSyncService: WidgetSyncService(),
+        );
+        await reloaded.initialize(startPage: StartPage.today);
+        expect(reloaded.history, isEmpty);
+        expect(reloaded.allTasks, hasLength(3));
+      },
+    );
+
     test('streak counts consecutive active days', () async {
       await provider.addTask(
         title: 'd',

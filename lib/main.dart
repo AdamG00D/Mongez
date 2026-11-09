@@ -95,7 +95,7 @@ Future<void> main() async {
   await HomeWidget.registerInteractivityCallback(homeWidgetBackgroundCallback);
 
   final storage = LocalStorageService();
-  final notifications = NotificationService();
+  final notifications = NotificationService()..foregroundDelivery = true;
   await notifications.initialize(
     backgroundHandler: notificationBackgroundHandler,
   );

@@ -6,6 +6,7 @@ import '../models/task.dart';
 import '../models/task_type.dart';
 import '../providers/task_provider.dart';
 import '../utils/date_helpers.dart';
+import 'reminder_permissions.dart';
 
 class AddTaskSheet extends StatefulWidget {
   const AddTaskSheet({super.key, this.initialDate, this.taskToEdit});
@@ -49,6 +50,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   WeeklyReminderMode _weeklyReminder = WeeklyReminderMode.everyDayUntilDone;
   bool _showNote = false;
   bool _isSaving = false;
+  bool _permissionsChecked = false;
 
   @override
   void initState() {
@@ -104,7 +106,16 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     );
     if (pickedTime != null) {
       setState(() => _selectedTime = pickedTime);
+      await _checkReminderPermissions();
     }
+  }
+
+  Future<void> _checkReminderPermissions() async {
+    if (_permissionsChecked || !mounted) {
+      return;
+    }
+    _permissionsChecked = true;
+    await ensureReminderPermissions(context);
   }
 
   Future<void> _submit() async {
@@ -123,6 +134,14 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         ),
       );
       return;
+    }
+
+    if (_selectedTime != null) {
+      // Editing a task that already had a time: still verify permissions.
+      await _checkReminderPermissions();
+      if (!mounted) {
+        return;
+      }
     }
 
     setState(() => _isSaving = true);

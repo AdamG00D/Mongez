@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -70,6 +71,13 @@ class NotificationService {
   Future<void>? _running;
   bool _rerunRequested = false;
 
+  /// When true (main UI isolate only) reminders that fall due while the app
+  /// is open are also posted directly from a Dart timer, so they show up on
+  /// time even if the OS delays the inexact alarm.
+  bool foregroundDelivery = false;
+  Timer? _foregroundTimer;
+  List<_Planned> _plan = const <_Planned>[];
+
   Future<void> initialize({
     BackgroundNotificationHandler? backgroundHandler,
   }) async {
@@ -128,6 +136,48 @@ class NotificationService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// Whether exact alarms are allowed (always true below Android 12).
+  Future<bool> canScheduleExact() async {
+    if (kIsWeb) {
+      return false;
+    }
+    try {
+      return await _android?.canScheduleExactNotifications() ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Shows the system "Allow notifications" prompt (Android 13+).
+  /// Returns whether notifications are enabled afterwards.
+  Future<bool> requestNotificationPermission() async {
+    if (kIsWeb) {
+      return false;
+    }
+    await initialize();
+    try {
+      final granted = await _android?.requestNotificationsPermission();
+      if (granted ?? false) {
+        return true;
+      }
+    } catch (_) {}
+    return areNotificationsEnabled();
+  }
+
+  /// Opens the "Alarms & reminders" page (Android 12+). Returns whether exact
+  /// alarms are allowed afterwards.
+  Future<bool> requestExactAlarmPermission() async {
+    if (kIsWeb) {
+      return false;
+    }
+    await initialize();
+    try {
+      await _android?.requestExactAlarmsPermission();
+    } catch (_) {}
+    _supportsExactAlarms = await canScheduleExact();
+    return _supportsExactAlarms;
   }
 
   Future<void> requestPermissions() async {
@@ -209,7 +259,9 @@ class NotificationService {
     _supportsExactAlarms =
         await _android?.canScheduleExactNotifications() ?? false;
 
-    await _plugin.cancelAll();
+    // Only cancel *pending* alarms. `cancelAll()` would also wipe reminders
+    // already shown in the tray every time the app resumes or data changes.
+    await _plugin.cancelAllPendingNotifications();
 
     final now = tz.TZDateTime.now(tz.local);
     final today = dateOnly(DateTime.now());
@@ -226,9 +278,83 @@ class NotificationService {
     }
 
     items.sort((_Planned a, _Planned b) => a.at.compareTo(b.at));
-    for (final item in items.take(_maxScheduled)) {
+    final planned = items.take(_maxScheduled).toList();
+    for (final item in planned) {
       await _schedule(item);
     }
+    _plan = planned;
+    await _removeStaleShown(input.tasks);
+    _armForegroundTimer();
+  }
+
+  /// Removes shown task reminders whose task was deleted or completed.
+  Future<void> _removeStaleShown(List<Task> tasks) async {
+    try {
+      final active = await _plugin.getActiveNotifications();
+      for (final shown in active) {
+        final parts = (shown.payload ?? '').split('|');
+        if (shown.id == null || parts.length != 3 || parts[0] != 'task') {
+          continue;
+        }
+        final day = dateFromKey(parts[2]);
+        final task = tasks.where((Task t) => t.id == parts[1]).firstOrNull;
+        if (task == null || task.isCompletedOn(day)) {
+          await _plugin.cancel(shown.id!);
+        }
+      }
+    } catch (_) {
+      // getActiveNotifications is unsupported on very old Android versions.
+    }
+  }
+
+  void _armForegroundTimer() {
+    _foregroundTimer?.cancel();
+    _foregroundTimer = null;
+    if (!foregroundDelivery) {
+      return;
+    }
+    final now = tz.TZDateTime.now(tz.local);
+    final next = _plan.where((_Planned p) => p.at.isAfter(now)).firstOrNull;
+    if (next == null) {
+      return;
+    }
+    final wait = next.at.difference(now);
+    // Re-armed on every sync / resume, so a long horizon isn't needed.
+    if (wait > const Duration(hours: 12)) {
+      return;
+    }
+    _foregroundTimer = Timer(wait, () => _deliverDue(next.at));
+  }
+
+  /// Posts every reminder due at [at] right now if the app is in the
+  /// foreground, replacing its pending alarm so it never shows twice.
+  Future<void> _deliverDue(tz.TZDateTime at) async {
+    final state = WidgetsBinding.instance.lifecycleState;
+    if (state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.inactive) {
+      List<ActiveNotification> active = const <ActiveNotification>[];
+      try {
+        active = await _plugin.getActiveNotifications();
+      } catch (_) {}
+      final shownIds = active.map((ActiveNotification a) => a.id).toSet();
+      for (final item in _plan.where((_Planned p) => p.at == at)) {
+        if (shownIds.contains(item.id)) {
+          continue; // The alarm already fired.
+        }
+        try {
+          await _plugin.cancel(item.id);
+          await _plugin.show(
+            item.id,
+            item.title,
+            item.body,
+            _details(item),
+            payload: item.payload,
+          );
+        } catch (_) {}
+      }
+    }
+    _plan = _plan.where((_Planned p) => p.at.isAfter(at)).toList();
+    _armForegroundTimer();
   }
 
   void _planTask(
@@ -400,8 +526,8 @@ class NotificationService {
     }
   }
 
-  Future<void> _schedule(_Planned item) async {
-    final details = NotificationDetails(
+  NotificationDetails _details(_Planned item) {
+    return NotificationDetails(
       android: AndroidNotificationDetails(
         item.channel.id,
         item.channel.name,
@@ -425,6 +551,10 @@ class NotificationService {
             : null,
       ),
     );
+  }
+
+  Future<void> _schedule(_Planned item) async {
+    final details = _details(item);
 
     Future<void> attempt(AndroidScheduleMode mode) => _plugin.zonedSchedule(
       item.id,

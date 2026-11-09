@@ -1,5 +1,36 @@
 # Changelog
 
+## 2.0.1
+
+### Fixed
+- Content no longer scrolls under the phone's status bar (clock, battery, signal) on the Tasks
+  and History tabs.
+- The summary home-screen widget showed "Can't load widget": its layout used a view type that
+  Android widgets don't allow.
+- The "Task deleted" SnackBar stayed on screen until dismissed. It now closes after 4 s and is
+  cleared when you switch tabs.
+- Reminders shown while the app was open got removed whenever the app rescheduled (on resume or
+  after any change). Shown reminders now stay, and reminders that fall due while the app is
+  open are posted on time even if Android delays the alarm.
+- "Carry unfinished over" from a past day now moves tasks to today instead of another past day.
+  It is always available and explains that daily and weekly tasks repeat on their own.
+
+### New
+- Delete from history: tap any entry in the History tab to delete it, or delete all entries of
+  that task. You can also clear the whole log. Undo is available for all of them.
+- "Delete task and its history" option in the task actions sheet. A plain delete still keeps
+  completions from earlier days.
+- Sounds: a short sound for each completed task, and a celebration sound when all of today's
+  tasks are done or a goal is achieved (Settings → Celebration and sounds).
+- Setting a reminder time asks for the notification permission, and the "Alarms & reminders"
+  permission when needed, so reminders fire on time.
+- Full day names in the week strip and charts.
+- Sorting by time or priority now confirms with a short message.
+
+### Project
+- Open-source setup: new README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, issue and PR
+  templates, Dependabot. CI checks formatting and runs on every PR.
+
 ## 2.0.0
 
 ### New

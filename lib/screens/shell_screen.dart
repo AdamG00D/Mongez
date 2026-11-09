@@ -20,6 +20,13 @@ class ShellScreen extends StatefulWidget {
 
 class _ShellScreenState extends State<ShellScreen> {
   final Set<int> _visited = <int>{AppNavigation.tasksTab};
+
+  /// One messenger per tab so a tab's SnackBar never covers another tab.
+  final List<GlobalKey<ScaffoldMessengerState>> _messengers =
+      List<GlobalKey<ScaffoldMessengerState>>.generate(
+        5,
+        (_) => GlobalKey<ScaffoldMessengerState>(),
+      );
   StreamSubscription<Uri?>? _widgetClicks;
 
   @override
@@ -38,6 +45,11 @@ class _ShellScreenState extends State<ShellScreen> {
   }
 
   void _onTabChanged() {
+    // Leaving a tab dismisses its SnackBars (e.g. "task deleted – undo"), so
+    // they don't linger and reappear when coming back.
+    for (final key in _messengers) {
+      key.currentState?.clearSnackBars();
+    }
     setState(() => _visited.add(AppNavigation.currentTab.value));
   }
 
@@ -84,7 +96,7 @@ class _ShellScreenState extends State<ShellScreen> {
               if (!_visited.contains(i)) {
                 return const SizedBox.shrink();
               }
-              return ScaffoldMessenger(child: _tabs[i]);
+              return ScaffoldMessenger(key: _messengers[i], child: _tabs[i]);
             }),
           ),
         ),

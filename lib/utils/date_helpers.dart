@@ -173,16 +173,6 @@ const Map<int, String> arabicWeekDayNames = <int, String>{
   DateTime.sunday: 'الأحد',
 };
 
-const Map<int, String> arabicWeekDayShort = <int, String>{
-  DateTime.monday: 'إثن',
-  DateTime.tuesday: 'ثلا',
-  DateTime.wednesday: 'أرب',
-  DateTime.thursday: 'خمي',
-  DateTime.friday: 'جمع',
-  DateTime.saturday: 'سبت',
-  DateTime.sunday: 'أحد',
-};
-
 /// Week days ordered starting from [startDay] (defaults to the configured
 /// first day of the week).
 List<int> weekDaysOrdered([int? startDay]) {
