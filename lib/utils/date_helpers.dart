@@ -112,8 +112,21 @@ String relativeDateLabel(DateTime date) {
   return DateFormat('EEEE', 'ar').format(normalized);
 }
 
-String greetingForNow() {
-  final hour = DateTime.now().hour;
+/// Hours at which the greeting changes: night, morning, afternoon, evening.
+const List<int> _greetingHours = <int>[0, 5, 12, 17];
+
+/// The next moment after [now] at which [greetingForNow] returns a new text.
+DateTime nextGreetingChange(DateTime now) {
+  for (final hour in _greetingHours) {
+    if (hour > now.hour) {
+      return DateTime(now.year, now.month, now.day, hour);
+    }
+  }
+  return DateTime(now.year, now.month, now.day + 1);
+}
+
+String greetingForNow([DateTime? now]) {
+  final hour = (now ?? DateTime.now()).hour;
   if (hour < 5) {
     return 'ليلة هادئة';
   }

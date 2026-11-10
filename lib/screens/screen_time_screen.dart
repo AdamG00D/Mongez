@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../models/usage.dart';
 import '../providers/screen_time_provider.dart';
+import '../services/system_service.dart';
 import '../utils/date_helpers.dart';
 import '../widgets/common.dart';
+import 'privacy_policy_screen.dart';
 
 class ScreenTimeScreen extends StatefulWidget {
   const ScreenTimeScreen({super.key});
@@ -134,10 +136,67 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
   }
 }
 
-class _PermissionCard extends StatelessWidget {
+class _PermissionCard extends StatefulWidget {
   const _PermissionCard({required this.onGrant});
 
   final VoidCallback onGrant;
+
+  @override
+  State<_PermissionCard> createState() => _PermissionCardState();
+}
+
+class _PermissionCardState extends State<_PermissionCard> {
+  /// The user already went to the settings page and came back without the
+  /// permission, so the "switch is greyed out" help is opened for them.
+  bool _attempted = false;
+
+  /// Explains exactly what is read and asks for consent before sending the
+  /// user to the system "Usage access" page.
+  Future<void> _grant() async {
+    final agreed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        icon: const Icon(Icons.privacy_tip_rounded),
+        title: const Text('الوصول إلى بيانات الاستخدام'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Text(usageAccessDisclosure),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton(
+                  onPressed: () => PrivacyPolicyScreen.open(context),
+                  child: const Text('سياسة الخصوصية'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('لا، شكرًا'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('موافق، متابعة'),
+          ),
+        ],
+      ),
+    );
+    if (agreed != true || !mounted) {
+      return;
+    }
+    widget.onGrant();
+    // Flip after the settings page has covered the app.
+    Future<void>.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) {
+        setState(() => _attempted = true);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -193,7 +252,7 @@ class _PermissionCard extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: onGrant,
+                    onPressed: _grant,
                     icon: const Icon(Icons.verified_user_rounded),
                     label: const Text('منح صلاحية الوصول للاستخدام'),
                   ),
@@ -202,7 +261,106 @@ class _PermissionCard extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        _RestrictedSettingHelp(
+          // Rebuilds expanded once the user has tried and come back.
+          key: ValueKey<bool>(_attempted),
+          initiallyExpanded: _attempted,
+        ),
       ],
+    );
+  }
+}
+
+/// Android 13+ greys out "Usage access" for apps installed from an APK file
+/// ("Controlled by restricted setting") until the user allows restricted
+/// settings from the app's info page. Apps installed from a store aren't
+/// affected.
+class _RestrictedSettingHelp extends StatelessWidget {
+  const _RestrictedSettingHelp({super.key, required this.initiallyExpanded});
+
+  final bool initiallyExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget step(int number, String text) => Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: 24,
+            height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              '$number',
+              style: TextStyle(
+                color: scheme.primary,
+                fontWeight: FontWeight.w800,
+                fontSize: 12.5,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: textTheme.bodyMedium)),
+        ],
+      ),
+    );
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: initiallyExpanded,
+          leading: Icon(Icons.help_outline_rounded, color: scheme.primary),
+          title: const Text('زر السماح رمادي ولا يعمل؟'),
+          subtitle: const Text('يظهر تحته "Controlled by restricted setting"'),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'أندرويد يقفل هذه الصلاحية للتطبيقات المثبّتة من ملف APK. افتحها مرة واحدة هكذا:',
+              style: textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            step(
+              1,
+              'اضغط زر السماح الرمادي مرة واحدة حتى تظهر رسالة المنع، ثم أغلقها.',
+            ),
+            step(2, 'اضغط "فتح معلومات التطبيق" بالأسفل.'),
+            step(
+              3,
+              'اضغط النقاط الثلاث ⋮ أعلى الصفحة ثم "السماح بالإعدادات المقيّدة" (Allow restricted settings) وأكّد ببصمتك أو رمز القفل.',
+            ),
+            step(4, 'ارجع إلى هنا واضغط "منح صلاحية الوصول للاستخدام".'),
+            Text(
+              'لا تظهر النقاط الثلاث إلا بعد الخطوة الأولى.',
+              style: textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: SystemService.openAppInfo,
+                icon: const Icon(Icons.info_outline_rounded),
+                label: const Text('فتح معلومات التطبيق'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

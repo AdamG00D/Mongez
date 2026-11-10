@@ -17,6 +17,7 @@ class LocalStorageService {
   static const String _trackedAppsKey = 'mongez.tracked_apps.v1';
   static const String _legacyThemeModeKey = 'mongez.theme_mode.v1';
   static const String _demoSeededKey = 'mongez.demo_seeded.v1';
+  static const String _taskDraftKey = 'mongez.task_draft.v1';
 
   Future<SharedPreferences> _prefs() async {
     final preferences = await SharedPreferences.getInstance();
@@ -158,6 +159,31 @@ class LocalStorageService {
   Future<void> saveTrackedApps(Map<String, int> apps) async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(_trackedAppsKey, jsonEncode(apps));
+  }
+
+  /// The task being written when the app left for a system permission page.
+  /// Lets the add/edit sheet come back if Android recreated the app meanwhile.
+  Future<Map<String, dynamic>?> loadTaskDraft() async {
+    final preferences = await _prefs();
+    final raw = preferences.getString(_taskDraftKey);
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    try {
+      return Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveTaskDraft(Map<String, dynamic> draft) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_taskDraftKey, jsonEncode(draft));
+  }
+
+  Future<void> clearTaskDraft() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.remove(_taskDraftKey);
   }
 
   Future<bool> hasSeededDemoData() async {

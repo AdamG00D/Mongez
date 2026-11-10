@@ -35,6 +35,70 @@ class _HomeScreenState extends State<HomeScreen> {
         _openAddSheet();
       }
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreWhenLoaded());
+  }
+
+  /// After a cold start: reopen the task that was being written when Android
+  /// closed the app behind a permission page.
+  void _restoreWhenLoaded() {
+    if (!mounted) {
+      return;
+    }
+    final provider = context.read<TaskProvider>();
+    if (!provider.isLoading) {
+      _restoreInterruptedDraft();
+      return;
+    }
+    void listener() {
+      if (provider.isLoading) {
+        return;
+      }
+      provider.removeListener(listener);
+      if (mounted) {
+        _restoreInterruptedDraft();
+      }
+    }
+
+    provider.addListener(listener);
+  }
+
+  /// Reopens the add/edit sheet with the saved draft, if a sheet was lost
+  /// while the user was on a system permission page.
+  Future<void> _restoreInterruptedDraft() async {
+    final provider = context.read<TaskProvider>();
+    final storage = provider.storageService;
+    final draft = await storage.loadTaskDraft();
+    if (draft == null) {
+      return;
+    }
+    // One shot, whatever happens next.
+    await storage.clearTaskDraft();
+    if (!mounted) {
+      return;
+    }
+    final savedAt = draft['savedAt'];
+    final age = savedAt is int
+        ? DateTime.now().difference(
+            DateTime.fromMillisecondsSinceEpoch(savedAt),
+          )
+        : AddTaskSheet.draftMaxAge;
+    if (age.isNegative || age >= AddTaskSheet.draftMaxAge) {
+      return;
+    }
+    Task? task;
+    final taskId = draft['taskId'];
+    if (taskId is String) {
+      for (final candidate in provider.allTasks) {
+        if (candidate.id == taskId) {
+          task = candidate;
+        }
+      }
+      if (task == null) {
+        return; // The task being edited no longer exists.
+      }
+    }
+    AppNavigation.currentTab.value = AppNavigation.tasksTab;
+    _openAddSheet(task: task, draft: draft);
   }
 
   @override
@@ -43,14 +107,20 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _openAddSheet({Task? task}) {
+  Future<void> _openAddSheet({Task? task, Map<String, dynamic>? draft}) async {
     final provider = context.read<TaskProvider>();
     final selected = provider.selectedDate;
-    AddTaskSheet.show(
+    await AddTaskSheet.show(
       context,
       task: task,
+      draft: draft,
       initialDate: selected.isBefore(todayDate()) ? todayDate() : selected,
     );
+    // A draft is still stored only if the sheet went away in the middle of the
+    // permission flow; bring it back.
+    if (mounted) {
+      await _restoreInterruptedDraft();
+    }
   }
 
   Future<void> _pickDate(TaskProvider provider) async {
@@ -342,6 +412,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         _Header(
                           onMenu: (String v) => _onMenu(v, provider),
                           hideCompleted: settings.hideCompleted,
+                          taskCount: allTasks.length,
+                          doneCount: done,
+                          carryCount: allTasks
+                              .where(
+                                (Task t) =>
+                                    t.isNormal &&
+                                    !t.isCompletedOn(selectedDate),
+                              )
+                              .length,
+                          carryTarget: TaskProvider.carryTarget(selectedDate),
                         ),
                         const SizedBox(height: 12),
                         WeekStrip(
@@ -474,15 +554,44 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onMenu, required this.hideCompleted});
+  const _Header({
+    required this.onMenu,
+    required this.hideCompleted,
+    required this.taskCount,
+    required this.doneCount,
+    required this.carryCount,
+    required this.carryTarget,
+  });
 
   final ValueChanged<String> onMenu;
   final bool hideCompleted;
+
+  /// Tasks on the selected day, and how many of them are done.
+  final int taskCount;
+  final int doneCount;
+
+  /// Unfinished one-off tasks on the selected day, and the day they'd move to.
+  final int carryCount;
+  final DateTime carryTarget;
+
+  static String _tasksCount(int count) {
+    return switch (count) {
+      1 => 'مهمة واحدة',
+      2 => 'مهمتان',
+      <= 10 => '$count مهام',
+      _ => '$count مهمة',
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final carryTo = switch (relativeDateLabel(carryTarget)) {
+      'غدًا' => 'الغد',
+      final String label when label == 'اليوم' || label == 'بعد غد' => label,
+      final String weekday => 'يوم $weekday',
+    };
     return Row(
       children: <Widget>[
         const MongezLogo(size: 42),
@@ -491,13 +600,7 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                greetingForNow(),
-                style: textTheme.bodyMedium?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              const _Greeting(),
               Text(
                 'مُنجز',
                 style: textTheme.headlineSmall?.copyWith(
@@ -512,45 +615,222 @@ class _Header extends StatelessWidget {
           tooltip: 'خيارات',
           icon: const Icon(Icons.more_vert_rounded),
           onSelected: onMenu,
+          position: PopupMenuPosition.under,
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: scheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+          ),
+          constraints: const BoxConstraints(minWidth: 240, maxWidth: 300),
+          menuPadding: const EdgeInsets.symmetric(vertical: 6),
           itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-            const PopupMenuItem<String>(
+            const _MenuLabel('ترتيب مهام اليوم'),
+            _menuItem(
+              context,
               value: 'time',
-              child: ListTile(
-                leading: Icon(Icons.schedule_rounded),
-                title: Text('ترتيب حسب الوقت'),
-              ),
+              icon: Icons.schedule_rounded,
+              title: 'حسب الوقت',
+              enabled: taskCount > 1,
             ),
-            const PopupMenuItem<String>(
+            _menuItem(
+              context,
               value: 'priority',
-              child: ListTile(
-                leading: Icon(Icons.local_fire_department_rounded),
-                title: Text('ترتيب حسب الأولوية'),
-              ),
+              icon: Icons.local_fire_department_rounded,
+              title: 'حسب الأولوية',
+              enabled: taskCount > 1,
             ),
-            PopupMenuItem<String>(
+            const PopupMenuDivider(height: 10),
+            _menuItem(
+              context,
               value: 'hide',
-              child: ListTile(
-                leading: Icon(
-                  hideCompleted
-                      ? Icons.visibility_rounded
-                      : Icons.visibility_off_rounded,
-                ),
-                title: Text(
-                  hideCompleted ? 'إظهار المكتملة' : 'إخفاء المكتملة',
-                ),
-              ),
+              icon: hideCompleted
+                  ? Icons.visibility_rounded
+                  : Icons.visibility_off_rounded,
+              title: hideCompleted ? 'إظهار المكتملة' : 'إخفاء المكتملة',
+              subtitle: hideCompleted && doneCount > 0
+                  ? '${_tasksCount(doneCount)} مخفية الآن'
+                  : null,
             ),
-            const PopupMenuItem<String>(
+            _menuItem(
+              context,
               value: 'carry',
-              child: ListTile(
-                leading: Icon(Icons.redo_rounded),
-                title: Text('نقل غير المنجز لليوم التالي'),
-                subtitle: Text('المهام التي لمرة واحدة فقط'),
-              ),
+              icon: Icons.redo_rounded,
+              title: 'نقل غير المنجز إلى $carryTo',
+              subtitle: carryCount > 0
+                  ? '${_tasksCount(carryCount)} لمرة واحدة'
+                  : 'لا توجد مهام لمرة واحدة غير منجزة',
+              enabled: carryCount > 0,
             ),
           ],
         ),
       ],
+    );
+  }
+
+  static PopupMenuItem<String> _menuItem(
+    BuildContext context, {
+    required String value,
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    bool enabled = true,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final faded = scheme.onSurface.withValues(alpha: 0.38);
+    return PopupMenuItem<String>(
+      value: value,
+      enabled: enabled,
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: (enabled ? scheme.primary : scheme.onSurface).withValues(
+                alpha: enabled ? 0.12 : 0.06,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: enabled ? scheme.primary : faded,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14.5,
+                    height: 1.3,
+                    color: enabled ? scheme.onSurface : faded,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                      height: 1.3,
+                      color: enabled ? scheme.onSurfaceVariant : faded,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small section caption inside the options menu.
+class _MenuLabel extends PopupMenuEntry<String> {
+  const _MenuLabel(this.text);
+
+  final String text;
+
+  @override
+  double get height => 30;
+
+  @override
+  bool represents(String? value) => false;
+
+  @override
+  State<_MenuLabel> createState() => _MenuLabelState();
+}
+
+class _MenuLabelState extends State<_MenuLabel> {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 6, 16, 4),
+      child: Text(
+        widget.text,
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+/// Time-of-day greeting that updates itself when the period changes (morning,
+/// afternoon, evening, night) and when the app comes back to the foreground.
+class _Greeting extends StatefulWidget {
+  const _Greeting();
+
+  @override
+  State<_Greeting> createState() => _GreetingState();
+}
+
+class _GreetingState extends State<_Greeting> with WidgetsBindingObserver {
+  Timer? _timer;
+  String _text = greetingForNow();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _schedule();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refresh();
+    }
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    final now = DateTime.now();
+    _timer = Timer(
+      nextGreetingChange(now).difference(now) + const Duration(seconds: 1),
+      _refresh,
+    );
+  }
+
+  void _refresh() {
+    if (!mounted) {
+      return;
+    }
+    final text = greetingForNow();
+    if (text != _text) {
+      setState(() => _text = text);
+    }
+    _schedule();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Text(
+      _text,
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: scheme.onSurfaceVariant,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
 }

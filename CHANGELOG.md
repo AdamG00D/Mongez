@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.0.2
+
+### Fixed
+- Picking a reminder time (or a date) no longer puts the cursor back in the title field and
+  reopens the keyboard.
+- A task being written is no longer lost if the sheet does not survive the trip to a system
+  permission page: the form is saved before leaving and reopened with everything filled in.
+- The greeting in the header now changes with the time of day while the app stays open, and
+  when it comes back to the foreground.
+
+- Light mode: chip labels (date, priority, weekly options) and list titles had no color and
+  rendered white on a light surface.
+
+### Changed
+- Options menu on the Tasks tab: compact rounded design. "Carry unfinished over" is disabled
+  when the day has no unfinished one-off tasks and says so; otherwise it shows how many tasks
+  will move and where. Sorting is disabled when there is nothing to sort.
+- Removed the Facebook link from Settings → About.
+- Softer, quieter celebration sound (`tool/gen_celebrate_sound.py`).
+- Screen time: before opening the system "Usage access" page, a dialog states exactly what is
+  read, why, and that it stays on the device, and asks for consent.
+- Privacy policy: readable in the app (Settings → About) and published as `PRIVACY.md`.
+- Screen time: step-by-step help for "Controlled by restricted setting" (APK installs on
+  Android 13+), with a shortcut to the App info page.
+
 ## 2.0.1
 
 ### Fixed

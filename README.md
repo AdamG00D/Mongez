@@ -36,6 +36,12 @@ Plan your day, keep your streaks, track yearly goals and screen time. No account
 - **Home-screen widgets:** a task list and a summary widget.
 - **Backup / restore** to a JSON file. Fully offline.
 
+## Privacy
+
+No account, no ads, no trackers, and no Internet permission. See the [privacy policy](PRIVACY.md).
+Store listing texts and graphics live in [`fastlane/metadata/android`](fastlane/metadata/android);
+the Google Play release steps are in [`docs/GOOGLE_PLAY.md`](docs/GOOGLE_PLAY.md) (Arabic).
+
 ## Tech stack
 
 | Area | Choice |

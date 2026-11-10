@@ -14,6 +14,7 @@ import 'package:mongez/services/local_storage_service.dart';
 import 'package:mongez/services/notification_service.dart';
 import 'package:mongez/services/screen_time_service.dart';
 import 'package:mongez/services/widget_sync_service.dart';
+import 'package:mongez/utils/date_helpers.dart';
 import 'package:mongez/screens/settings_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -181,9 +182,142 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // About: privacy policy opens in the app; no Facebook link.
+      await tester.tap(find.text('سياسة الخصوصية'));
+      await tester.pumpAndSettle();
+      expect(find.text('بيانات استخدام الهاتف (وقت الشاشة)'), findsOneWidget);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('GitHub'), findsOneWidget);
+      expect(find.text('Facebook'), findsNothing);
+
       AppNavigation.currentTab.value = AppNavigation.tasksTab;
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
   }
+
+  Future<void> pumpApp(WidgetTester tester, Map<String, Object> prefs) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 2.75;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues(prefs);
+    AppNavigation.currentTab.value = AppNavigation.tasksTab;
+    final app = await tester.runAsync(() => buildApp());
+    await tester.pumpWidget(app!);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('options menu: carry over is disabled when nothing to move', (
+    WidgetTester tester,
+  ) async {
+    await pumpApp(tester, <String, Object>{});
+    final provider = Provider.of<TaskProvider>(
+      tester.element(find.byType(MaterialApp)),
+      listen: false,
+    );
+    final day = provider.selectedDate;
+    // Leave only repeating tasks on the selected day.
+    for (final task in provider.tasksForDay(day).where((t) => t.isNormal)) {
+      await tester.runAsync(() => provider.deleteTask(task.id));
+    }
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('خيارات'));
+    await tester.pumpAndSettle();
+    expect(find.text('لا توجد مهام لمرة واحدة غير منجزة'), findsOneWidget);
+    await tester.tap(find.textContaining('نقل غير المنجز'));
+    await tester.pumpAndSettle();
+    // Disabled: the menu stays open and nothing happens.
+    expect(find.textContaining('نقل غير المنجز'), findsOneWidget);
+    await tester.tapAt(const Offset(5, 500));
+    await tester.pumpAndSettle();
+
+    await tester.runAsync(
+      () => provider.addTask(
+        title: 'مهمة تُنقل',
+        date: day,
+        type: TaskType.normal,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('خيارات'));
+    await tester.pumpAndSettle();
+    expect(find.text('مهمة واحدة لمرة واحدة'), findsOneWidget);
+    await tester.tap(find.textContaining('نقل غير المنجز'));
+    await tester.pumpAndSettle();
+    expect(
+      provider.tasksForDay(day).where((t) => t.title == 'مهمة تُنقل'),
+      isEmpty,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('picking a reminder time does not refocus the title', (
+    WidgetTester tester,
+  ) async {
+    await pumpApp(tester, <String, Object>{});
+    await tester.tap(find.text('مهمة جديدة'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField).first, 'مهمة بوقت');
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    await tester.tap(find.text('بدون وقت (بدون تذكير)'));
+    await tester.pumpAndSettle();
+    final ok = MaterialLocalizations.of(
+      tester.element(find.byType(TimePickerDialog)),
+    ).okButtonLabel;
+    await tester.tap(find.text(ok));
+    await tester.pumpAndSettle();
+    // Dismiss any permission explanation shown on top.
+    if (find.text('لاحقًا').evaluate().isNotEmpty) {
+      await tester.tap(find.text('لاحقًا'));
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.textContaining('تذكير'), findsWidgets);
+    expect(tester.testTextInput.isVisible, isFalse);
+    expect(
+      tester
+          .widget<TextFormField>(find.byType(TextFormField).first)
+          .controller!
+          .text,
+      'مهمة بوقت',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a task interrupted by a permission page is restored', (
+    WidgetTester tester,
+  ) async {
+    await pumpApp(tester, <String, Object>{
+      'mongez.task_draft.v1':
+          '{"savedAt":${DateTime.now().millisecondsSinceEpoch},"taskId":null,'
+          '"title":"مهمة لم تكتمل","note":"تفاصيل","showNote":true,'
+          '"date":"${dateKey(todayDate())}","time":1290,"type":"daily",'
+          '"priority":"high","weeklyAnyDay":true,"weeklyDays":[],'
+          '"weekStartDay":6,"weeklyReminder":"everyDayUntilDone"}',
+    });
+    expect(find.text('مهمة جديدة'), findsWidgets);
+    expect(find.text('مهمة لم تكتمل'), findsOneWidget);
+    expect(find.text('تفاصيل'), findsOneWidget);
+    expect(find.textContaining('تذكير'), findsWidgets);
+    expect(tester.testTextInput.isVisible, isFalse);
+
+    // Restored once only: closing it doesn't bring it back.
+    Navigator.of(tester.element(find.text('مهمة لم تكتمل'))).pop();
+    await tester.pumpAndSettle();
+    expect(find.text('مهمة لم تكتمل'), findsNothing);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('mongez.task_draft.v1'), isNull);
+  });
+
+  testWidgets('an old draft is dropped', (WidgetTester tester) async {
+    final old = DateTime.now().subtract(const Duration(hours: 2));
+    await pumpApp(tester, <String, Object>{
+      'mongez.task_draft.v1':
+          '{"savedAt":${old.millisecondsSinceEpoch},"title":"قديمة"}',
+    });
+    expect(find.text('قديمة'), findsNothing);
+  });
 }

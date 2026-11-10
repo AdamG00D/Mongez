@@ -152,9 +152,20 @@ class AppTheme {
       ),
       chipTheme: base.chipTheme.copyWith(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        labelStyle: const TextStyle(
+        // A label style without a color would replace the default one and
+        // leave chip text with no color at all (white, unreadable in light
+        // mode), so the color is set here for every state.
+        labelStyle: TextStyle(
           fontFamily: 'Cairo',
           fontWeight: FontWeight.w700,
+          color: WidgetStateColor.resolveWith((Set<WidgetState> states) {
+            if (states.contains(WidgetState.disabled)) {
+              return scheme.onSurface.withValues(alpha: 0.38);
+            }
+            return states.contains(WidgetState.selected)
+                ? scheme.onSecondaryContainer
+                : scheme.onSurfaceVariant;
+          }),
         ),
         side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
       ),
@@ -200,12 +211,14 @@ class AppTheme {
               : null,
         ),
       ),
-      listTileTheme: const ListTileThemeData(
-        contentPadding: EdgeInsets.symmetric(horizontal: 16),
+      listTileTheme: ListTileThemeData(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        // Same as chips: the title needs an explicit color.
         titleTextStyle: TextStyle(
           fontFamily: 'Cairo',
           fontWeight: FontWeight.w700,
           fontSize: 15,
+          color: scheme.onSurface,
         ),
       ),
       dividerTheme: DividerThemeData(

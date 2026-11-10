@@ -33,7 +33,7 @@ body:
     attributes:
       label: App version / إصدار التطبيق
       description: Settings → About
-      placeholder: "2.0.1"
+      placeholder: "2.0.2"
     validations:
       required: true
   - type: input

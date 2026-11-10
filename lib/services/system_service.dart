@@ -30,6 +30,18 @@ class SystemService {
     }
   }
 
+  /// Opens the system "App info" page of this app. Returns false if it failed.
+  static Future<bool> openAppInfo() async {
+    if (!_isAndroid) {
+      return false;
+    }
+    try {
+      return await _channel.invokeMethod<bool>('openAppInfo') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Opens the app's notification settings page. Returns false if it failed.
   static Future<bool> openNotificationSettings() async {
     if (!_isAndroid) {

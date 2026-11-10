@@ -1,3 +1,4 @@
+import 'privacy_policy_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
@@ -18,7 +19,7 @@ import '../widgets/common.dart';
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
-  static const String appVersion = '2.0.1';
+  static const String appVersion = '2.0.2';
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -647,32 +648,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                     const SizedBox(height: 14),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                _openLink('https://github.com/AdamG00D'),
-                            icon: const FaIcon(
-                              FontAwesomeIcons.github,
-                              size: 18,
-                            ),
-                            label: const Text('GitHub'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                _openLink('https://www.facebook.com/AdamGO0D'),
-                            icon: const FaIcon(
-                              FontAwesomeIcons.facebookF,
-                              size: 18,
-                            ),
-                            label: const Text('Facebook'),
-                          ),
-                        ),
-                      ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => PrivacyPolicyScreen.open(context),
+                        icon: const Icon(Icons.privacy_tip_outlined, size: 18),
+                        label: const Text('سياسة الخصوصية'),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () =>
+                            _openLink('https://github.com/AdamG00D'),
+                        icon: const FaIcon(FontAwesomeIcons.github, size: 18),
+                        label: const Text('GitHub'),
+                      ),
                     ),
                   ],
                 ),

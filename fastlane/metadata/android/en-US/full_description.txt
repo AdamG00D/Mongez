@@ -1,0 +1,44 @@
+Mongez (مُنجز) is a simple Arabic, right-to-left planner: write your tasks, follow your yearly goals, and see where your phone time goes. It works fully offline. Free, open source, no ads, no account.
+
+Note: the app's interface is in Arabic.
+
+TASKS
+• One-off, daily and weekly tasks with priority, notes and a reminder time
+• Drag to reorder, or sort by time or priority
+• Swipe to complete or delete, with undo
+• Postpone, copy to tomorrow, carry unfinished tasks over
+• Weekly tasks on chosen days or "once any day", with a configurable first day of the week
+
+REMINDERS
+• A reminder at the time you set, with a "Done" button on the notification
+• Follow-up reminders for unfinished tasks
+• An evening reminder to plan tomorrow
+
+HISTORY AND STATS
+• A permanent completion log that survives deleting the task
+• Per-type counters and day streaks
+• A 7-day chart and your most completed tasks
+
+YEARLY GOALS
+• Numeric goals (read 12 books) or milestone goals
+• Your progress compared with how much of the year has passed
+
+SCREEN TIME (OPTIONAL)
+• Daily and weekly screen-on time and unlock count
+• Time spent in each app
+• Daily limits for the apps you choose to track
+This feature needs the "Usage access" permission, which you grant yourself in the phone's settings. The data is only shown to you and stays on your device.
+
+LOOK AND FEEL
+• 9 color themes, light, dark and AMOLED black
+• Built-in backgrounds or your own photo
+• A small celebration when you finish the day's tasks
+• Home-screen widgets for today's tasks and a summary
+
+PRIVACY
+• No account, no sign-up
+• No ads, no trackers
+• The app does not even have the Internet permission
+• Backup and restore through a file you keep
+
+Source code: https://github.com/AdamG00D/Mongez_App

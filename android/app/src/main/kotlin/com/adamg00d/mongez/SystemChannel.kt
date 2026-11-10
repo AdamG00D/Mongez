@@ -14,6 +14,7 @@ import io.flutter.plugin.common.MethodChannel
  * Small platform helpers that don't justify a plugin:
  *  - `playSound` plays the bundled completion / celebration sounds.
  *  - `openNotificationSettings` opens this app's notification settings page.
+ *  - `openAppInfo` opens this app's "App info" page.
  */
 class SystemChannel(private val context: Context) : MethodChannel.MethodCallHandler {
   companion object {
@@ -62,7 +63,24 @@ class SystemChannel(private val context: Context) : MethodChannel.MethodCallHand
       "openNotificationSettings" -> {
         result.success(openNotificationSettings())
       }
+      "openAppInfo" -> {
+        result.success(openAppInfo())
+      }
       else -> result.notImplemented()
+    }
+  }
+
+  /** Opens this app's "App info" page in the system settings. */
+  private fun openAppInfo(): Boolean {
+    val intent =
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+            .setData(Uri.fromParts("package", context.packageName, null))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    return try {
+      context.startActivity(intent)
+      true
+    } catch (_: Exception) {
+      false
     }
   }
 

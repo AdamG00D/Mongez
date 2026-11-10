@@ -9,10 +9,22 @@ import '../utils/date_helpers.dart';
 import 'reminder_permissions.dart';
 
 class AddTaskSheet extends StatefulWidget {
-  const AddTaskSheet({super.key, this.initialDate, this.taskToEdit});
+  const AddTaskSheet({
+    super.key,
+    this.initialDate,
+    this.taskToEdit,
+    this.draft,
+  });
 
   final DateTime? initialDate;
   final Task? taskToEdit;
+
+  /// Form state saved by a sheet that was interrupted by a permission page
+  /// (see [LocalStorageService.loadTaskDraft]).
+  final Map<String, dynamic>? draft;
+
+  /// A draft older than this is dropped instead of restored.
+  static const Duration draftMaxAge = Duration(minutes: 30);
 
   bool get isEditing => taskToEdit != null;
 
@@ -20,14 +32,18 @@ class AddTaskSheet extends StatefulWidget {
     BuildContext context, {
     Task? task,
     DateTime? initialDate,
+    Map<String, dynamic>? draft,
   }) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       useSafeArea: true,
-      builder: (BuildContext context) =>
-          AddTaskSheet(taskToEdit: task, initialDate: initialDate),
+      builder: (BuildContext context) => AddTaskSheet(
+        taskToEdit: task,
+        initialDate: initialDate,
+        draft: draft,
+      ),
     );
   }
 
@@ -77,7 +93,73 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     } else {
       _selectedDate = dateOnly(widget.initialDate ?? tomorrowDate());
     }
+    final draft = widget.draft;
+    if (draft != null) {
+      _applyDraft(draft);
+    }
   }
+
+  Map<String, dynamic> _draft() => <String, dynamic>{
+    'savedAt': DateTime.now().millisecondsSinceEpoch,
+    'taskId': widget.taskToEdit?.id,
+    'title': _titleController.text,
+    'note': _noteController.text,
+    'showNote': _showNote,
+    'date': dateKey(_selectedDate),
+    'time': _selectedTime == null ? null : minutesFromTimeOfDay(_selectedTime!),
+    'type': _selectedType.name,
+    'priority': _priority.name,
+    'weeklyAnyDay': _weeklyAnyDay,
+    'weeklyDays': _weeklyDays.toList(),
+    'weekStartDay': _weekStartDay,
+    'weeklyReminder': _weeklyReminder.name,
+  };
+
+  void _applyDraft(Map<String, dynamic> draft) {
+    T? byName<T extends Enum>(List<T> values, Object? name) {
+      for (final value in values) {
+        if (value.name == name) {
+          return value;
+        }
+      }
+      return null;
+    }
+
+    try {
+      _titleController.text = draft['title'] as String? ?? '';
+      _noteController.text = draft['note'] as String? ?? '';
+      _showNote =
+          draft['showNote'] == true || _noteController.text.trim().isNotEmpty;
+      final date = draft['date'];
+      if (date is String) {
+        _selectedDate = dateFromKey(date);
+      }
+      final time = draft['time'];
+      _selectedTime = time is int
+          ? TimeOfDay(hour: time ~/ 60, minute: time % 60)
+          : null;
+      _selectedType = byName(TaskType.values, draft['type']) ?? _selectedType;
+      _priority = byName(TaskPriority.values, draft['priority']) ?? _priority;
+      _weeklyAnyDay = draft['weeklyAnyDay'] as bool? ?? _weeklyAnyDay;
+      final days = draft['weeklyDays'];
+      if (days is List) {
+        _weeklyDays = days.whereType<int>().toSet();
+      }
+      final weekStart = draft['weekStartDay'];
+      if (weekStart is int && weekStart >= 1 && weekStart <= 7) {
+        _weekStartDay = weekStart;
+      }
+      _weeklyReminder =
+          byName(WeeklyReminderMode.values, draft['weeklyReminder']) ??
+          _weeklyReminder;
+    } catch (_) {
+      // A malformed draft just means starting from what was already set.
+    }
+  }
+
+  /// Closes the keyboard and makes sure the title field doesn't grab focus
+  /// again when a picker or dialog on top of the sheet closes.
+  void _dropFocus() => FocusManager.instance.primaryFocus?.unfocus();
 
   @override
   void dispose() {
@@ -87,6 +169,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   }
 
   Future<void> _pickDate() async {
+    _dropFocus();
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -100,6 +183,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   }
 
   Future<void> _pickTime() async {
+    _dropFocus();
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? const TimeOfDay(hour: 21, minute: 0),
@@ -115,7 +199,21 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       return;
     }
     _permissionsChecked = true;
-    await ensureReminderPermissions(context);
+    _dropFocus();
+    // The permission pages take the user out of the app. Keep what they wrote
+    // so it can be brought back if the sheet doesn't survive the trip.
+    final storage = context.read<TaskProvider>().storageService;
+    await storage.saveTaskDraft(_draft());
+    if (!mounted) {
+      return;
+    }
+    try {
+      await ensureReminderPermissions(context);
+    } finally {
+      if (mounted) {
+        await storage.clearTaskDraft();
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -227,7 +325,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               const SizedBox(height: 14),
               TextFormField(
                 controller: _titleController,
-                autofocus: !widget.isEditing,
+                autofocus: !widget.isEditing && widget.draft == null,
                 textInputAction: TextInputAction.done,
                 textCapitalization: TextCapitalization.sentences,
                 style: const TextStyle(
