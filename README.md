@@ -7,15 +7,32 @@
 **A free, open-source, offline-first Arabic (RTL) planner for Android.**
 Plan your day, keep your streaks, track yearly goals and screen time. No accounts, no ads, no tracking.
 
-[![Flutter CI](https://github.com/AdamG00D/Mongez_App/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/AdamG00D/Mongez_App/actions/workflows/flutter-ci.yml)
+[![Flutter CI](https://github.com/AdamG00D/Mongez/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/AdamG00D/Mongez/actions/workflows/flutter-ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/AdamG00D/Mongez?label=download)](https://github.com/AdamG00D/Mongez/releases/latest)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[العربية](#بالعربية) · [Features](#features) · [Getting started](#getting-started) · [Contributing](#contributing)
+[العربية](#بالعربية) · [Download](#download) · [Features](#features) · [Getting started](#getting-started) · [Contributing](#contributing)
 
 </div>
 
 ---
+
+## Download
+
+Get the latest APK from the **[Releases page](https://github.com/AdamG00D/Mongez/releases/latest)**
+(Android 7.0+).
+
+| File | For |
+| --- | --- |
+| `Mongez-<version>-arm64-v8a.apk` | Most phones from the last few years (recommended) |
+| `Mongez-<version>-armeabi-v7a.apk` | Older 32-bit phones |
+| `Mongez-<version>.apk` | Universal: works on any device, larger download |
+
+Open the file on your phone and allow installing from this source when asked. Each release
+lists SHA-256 checksums in `SHA256SUMS.txt`. Upgrading from 2.0.1 or older? Those builds used a
+different signing key, so uninstall the old version first (export a backup from Settings
+before you do).
 
 ## Features
 
@@ -64,8 +81,8 @@ the Google Play release steps are in [`docs/GOOGLE_PLAY.md`](docs/GOOGLE_PLAY.md
 ### Run
 
 ```bash
-git clone https://github.com/AdamG00D/Mongez_App.git
-cd Mongez_App
+git clone https://github.com/AdamG00D/Mongez.git
+cd Mongez
 flutter pub get
 flutter run
 ```
@@ -138,6 +155,10 @@ tests. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and our
 - سجل للإنجازات لا يضيع عند حذف المهمة، مع إمكانية حذف أي إنجاز منه يدويًا.
 - أهداف سنوية، ووقت الشاشة، وثيمات وخلفيات، وويدجت للشاشة الرئيسية.
 - تذكيرات في موعدها حتى والتطبيق مفتوح، مع زر «تم الإنجاز» داخل الإشعار.
+
+**التحميل:** نزّل ملف APK من [صفحة الإصدارات](https://github.com/AdamG00D/Mongez/releases/latest).
+لو مش عارف تختار، نزّل ملف `arm64-v8a` (مناسب لمعظم الموبايلات الحديثة) أو النسخة العامة.
+لو عندك إصدار 2.0.1 أو أقدم، احذفه الأول (بعد ما تاخد نسخة احتياطية من الإعدادات) لأن مفتاح التوقيع اتغير.
 
 **للمساهمة:** اقرأ [دليل المساهمة](CONTRIBUTING.md). المساهمات مرحب بها بالعربية أو الإنجليزية:
 بلاغ عن مشكلة، أو اقتراح ميزة، أو Pull Request.

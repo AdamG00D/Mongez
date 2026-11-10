@@ -10,7 +10,7 @@ Only the latest release receives fixes.
 ## Reporting a vulnerability
 
 Please **don't open a public issue** for security problems. Instead, use GitHub's
-[private vulnerability reporting](https://github.com/AdamG00D/Mongez_App/security/advisories/new)
+[private vulnerability reporting](https://github.com/AdamG00D/Mongez/security/advisories/new)
 and include:
 
 - what the issue is and its impact,

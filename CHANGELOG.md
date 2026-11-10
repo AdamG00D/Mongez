@@ -9,7 +9,6 @@
   permission page: the form is saved before leaving and reopened with everything filled in.
 - The greeting in the header now changes with the time of day while the app stays open, and
   when it comes back to the foreground.
-
 - Light mode: chip labels (date, priority, weekly options) and list titles had no color and
   rendered white on a light surface.
 
@@ -24,6 +23,9 @@
 - Privacy policy: readable in the app (Settings → About) and published as `PRIVACY.md`.
 - Screen time: step-by-step help for "Controlled by restricted setting" (APK installs on
   Android 13+), with a shortcut to the App info page.
+- Dependencies updated to their latest compatible versions.
+- Signed with a new release key. Installs of 2.0.1 or older must be uninstalled first (export a
+  backup from Settings before).
 
 ## 2.0.1
 

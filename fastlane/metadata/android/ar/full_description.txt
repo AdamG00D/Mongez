@@ -39,4 +39,4 @@
 • التطبيق لا يملك صلاحية الإنترنت أصلًا
 • نسخ احتياطي واستعادة عبر ملف تحتفظ به أنت
 
-الكود المصدري: https://github.com/AdamG00D/Mongez_App
+الكود المصدري: https://github.com/AdamG00D/Mongez

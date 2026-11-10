@@ -41,4 +41,4 @@ PRIVACY
 • The app does not even have the Internet permission
 • Backup and restore through a file you keep
 
-Source code: https://github.com/AdamG00D/Mongez_App
+Source code: https://github.com/AdamG00D/Mongez

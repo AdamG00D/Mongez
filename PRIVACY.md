@@ -63,7 +63,7 @@ any user.
 ### Changes and contact
 
 Changes to this policy are published with app updates and on this page. Mongez is open source;
-for questions, open an issue at <https://github.com/AdamG00D/Mongez_App/issues>.
+for questions, open an issue at <https://github.com/AdamG00D/Mongez/issues>.
 
 ---
 
@@ -122,6 +122,6 @@ for questions, open an issue at <https://github.com/AdamG00D/Mongez_App/issues>.
 ### التغييرات والتواصل
 
 أي تغيير على هذه السياسة يُنشر مع تحديث التطبيق وفي هذه الصفحة. التطبيق مفتوح المصدر، وللأسئلة
-افتح تذكرة على <https://github.com/AdamG00D/Mongez_App/issues>.
+افتح تذكرة على <https://github.com/AdamG00D/Mongez/issues>.
 
 </div>

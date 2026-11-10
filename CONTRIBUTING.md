@@ -18,8 +18,8 @@ approach before you spend time on it.
 ## Development setup
 
 ```bash
-git clone https://github.com/<you>/Mongez_App.git
-cd Mongez_App
+git clone https://github.com/<you>/Mongez.git
+cd Mongez
 flutter pub get
 flutter run
 ```

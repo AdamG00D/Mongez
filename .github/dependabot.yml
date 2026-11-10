@@ -5,6 +5,9 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    ignore:
+      # 0.9.4+ doesn't compile against the pinned androidx.glance 1.1.1.
+      - dependency-name: home_widget
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -6,7 +6,7 @@
 ## 1. قبل أن تبدأ
 
 1. ادمج الفرع في `main` وادفعه إلى GitHub. رابط سياسة الخصوصية لا يعمل قبل ذلك:
-   <https://github.com/AdamG00D/Mongez_App/blob/main/PRIVACY.md>
+   <https://github.com/AdamG00D/Mongez/blob/main/PRIVACY.md>
 2. ابنِ الحزمة: `./build_release.sh aab`
    الناتج: `build/app/outputs/bundle/release/app-release.aab`
 3. جرّب نسخة APK من نفس الكود على هاتف حقيقي (`./build_release.sh`): تذكير بوقت، زر "تم

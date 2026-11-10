@@ -6,7 +6,7 @@ import '../theme/backgrounds.dart';
 /// The privacy policy, readable offline. The same text is published at
 /// [privacyPolicyUrl] (PRIVACY.md in the repository) for the store listing.
 const String privacyPolicyUrl =
-    'https://github.com/AdamG00D/Mongez_App/blob/main/PRIVACY.md';
+    'https://github.com/AdamG00D/Mongez/blob/main/PRIVACY.md';
 
 /// What the app reads through Android's "Usage access", in plain words. Shown
 /// before the user is sent to the system settings page and in the policy.
