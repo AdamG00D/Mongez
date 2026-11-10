@@ -11,12 +11,23 @@ import io.flutter.FlutterInjector
 class MongezWidgetBackgroundReceiver : BroadcastReceiver() {
   companion object {
     private const val TAG = "MongezWidgetBg"
+
+    /** Runs the Dart widget callback with [uri] (e.g. a day-change refresh). */
+    fun dispatch(context: Context, uri: Uri) {
+      ensureFlutter(context)
+      val intent = Intent("es.antonborri.home_widget.action.BACKGROUND").apply { data = uri }
+      HomeWidgetBackgroundWorker.enqueueWork(context, intent)
+    }
+
+    private fun ensureFlutter(context: Context) {
+      val flutterLoader = FlutterInjector.instance().flutterLoader()
+      flutterLoader.startInitialization(context.applicationContext)
+      flutterLoader.ensureInitializationComplete(context.applicationContext, null)
+    }
   }
 
   override fun onReceive(context: Context, intent: Intent) {
-    val flutterLoader = FlutterInjector.instance().flutterLoader()
-    flutterLoader.startInitialization(context)
-    flutterLoader.ensureInitializationComplete(context, null)
+    ensureFlutter(context)
 
     val normalizedIntent = Intent(intent)
     if (normalizedIntent.dataString.isNullOrBlank()) {

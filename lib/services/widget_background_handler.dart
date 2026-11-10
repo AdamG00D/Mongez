@@ -1,17 +1,15 @@
-import 'package:flutter/foundation.dart';
-
-import '../models/completion_record.dart';
-import '../models/task.dart';
-import '../services/local_storage_service.dart';
-import '../services/notification_service.dart';
-import '../services/widget_sync_service.dart';
 import '../utils/date_helpers.dart';
+import 'background_actions.dart';
 
 class WidgetBackgroundHandler {
   static Future<void> handle(Uri uri) async {
     final today = dateOnly(DateTime.now());
     final fallbackQuery = _extractRawQuery(uri);
     final action = _resolveAction(uri, fallbackQuery);
+    if (action == 'refresh') {
+      await BackgroundActions.refreshWidgets();
+      return;
+    }
 
     var taskId = uri.queryParameters['taskId'] ?? fallbackQuery['taskId'];
     var date = uri.queryParameters['date'] ?? fallbackQuery['date'];
@@ -42,89 +40,13 @@ class WidgetBackgroundHandler {
       return;
     }
 
-    final selectedDay = _safeDateFromKey(date) ?? today;
-    final storageService = LocalStorageService();
-    final widgetSyncService = WidgetSyncService();
-    final notificationService = NotificationService();
-
-    final tasks = await storageService.loadTasks();
-    final history = await storageService.loadHistory();
-
-    final index = tasks.indexWhere((Task task) => task.id == taskId);
-    if (index == -1) {
-      return;
+    var selectedDay = _safeDateFromKey(date) ?? today;
+    // The widget always represents today; never toggle a past day from a
+    // stale widget snapshot.
+    if (selectedDay.isBefore(today)) {
+      selectedDay = today;
     }
-
-    final task = tasks[index];
-    var activeDay = selectedDay;
-    if (!task.appearsOn(activeDay) && task.appearsOn(today)) {
-      activeDay = today;
-    }
-    if (!task.appearsOn(activeDay)) {
-      return;
-    }
-
-    final shouldComplete = !task.isCompletedOn(activeDay);
-    final updatedTask = task.toggleCompletionForDay(activeDay, shouldComplete);
-    tasks[index] = updatedTask;
-
-    final recordId = _historyId(updatedTask, activeDay);
-    if (shouldComplete) {
-      final record = CompletionRecord(
-        id: recordId,
-        taskId: updatedTask.id,
-        taskTitle: updatedTask.title,
-        taskType: updatedTask.type,
-        completedAt: DateTime.now(),
-        completedForDate: updatedTask.isNormal
-            ? dateOnly(updatedTask.scheduledDate)
-            : dateOnly(activeDay),
-        taskTimeInMinutes: updatedTask.timeInMinutes,
-      );
-
-      final oldIndex = history.indexWhere(
-        (CompletionRecord item) => item.id == recordId,
-      );
-      if (oldIndex == -1) {
-        history.add(record);
-      } else {
-        history[oldIndex] = record;
-      }
-    } else {
-      history.removeWhere((CompletionRecord item) => item.id == recordId);
-    }
-
-    history.sort(
-      (CompletionRecord first, CompletionRecord second) =>
-          second.completedAt.compareTo(first.completedAt),
-    );
-
-    await storageService.saveTasks(tasks);
-    await storageService.saveHistory(history);
-    try {
-      await widgetSyncService.syncTodayTasks(tasks);
-    } catch (error, stackTrace) {
-      debugPrint('[Mongez.Widget] widget sync error: $error');
-      debugPrint(stackTrace.toString());
-    }
-    try {
-      await notificationService
-          .syncTaskNotificationsAfterWidgetToggle(updatedTask)
-          .timeout(const Duration(seconds: 2));
-    } catch (error, stackTrace) {
-      debugPrint('[Mongez.Widget] notification sync error: $error');
-      debugPrint(stackTrace.toString());
-    }
-  }
-
-  static String _historyId(Task task, DateTime day) {
-    if (task.isWeekly) {
-      return '${task.id}-${weekKey(day)}';
-    }
-    if (task.isDaily) {
-      return '${task.id}-${dateKey(day)}';
-    }
-    return '${task.id}-${dateKey(task.scheduledDate)}';
+    await BackgroundActions.toggleTask(taskId: taskId, day: selectedDay);
   }
 
   static Map<String, String> _extractRawQuery(Uri uri) {

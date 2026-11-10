@@ -6,95 +6,90 @@ import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
 
 import '../models/task.dart';
+import '../models/task_type.dart';
 import '../utils/date_helpers.dart';
+import '../utils/motivation.dart';
+import 'task_mutations.dart';
 
 class WidgetSyncService {
-  static const String _androidProviderName = 'MongezWidgetProvider';
-
-  static const String _titleKey = 'widget_title';
-  static const String _subtitleKey = 'widget_subtitle';
-  static const String _dateKey = 'widget_date_key';
-  static const String _tasksJsonKey = 'widget_tasks_json';
-
-  static String _taskTitleKey(int index) => 'widget_task_${index}_title';
-  static String _taskIdKey(int index) => 'widget_task_${index}_id';
-  static String _taskDoneKey(int index) => 'widget_task_${index}_done';
+  static const String listProviderName = 'MongezWidgetProvider';
+  static const String summaryProviderName = 'MongezSummaryWidgetProvider';
 
   Future<void> syncTodayTasks(List<Task> tasks) async {
     if (!_canUseAndroidWidget) {
       return;
     }
 
-    final today = dateOnly(DateTime.now());
-    final visibleTasks =
-        tasks.where((Task task) => task.appearsOn(today)).toList()
-          ..sort((Task first, Task second) {
-            final firstTime = first.timeInMinutes ?? 24 * 60 + 1;
-            final secondTime = second.timeInMinutes ?? 24 * 60 + 1;
-            if (firstTime != secondTime) {
-              return firstTime.compareTo(secondTime);
-            }
+    final today = todayDate();
+    final visibleTasks = TaskMutations.tasksForDay(tasks, today);
+    final done = visibleTasks
+        .where((Task task) => task.isCompletedOn(today))
+        .length;
+    final total = visibleTasks.length;
+    final progress = total == 0 ? 0 : ((done / total) * 100).round();
 
-            return first.createdAt.compareTo(second.createdAt);
-          });
+    Task? next;
+    for (final task in visibleTasks) {
+      if (!task.isCompletedOn(today)) {
+        next = task;
+        break;
+      }
+    }
 
-    await HomeWidget.saveWidgetData<String>(
-      _titleKey,
-      '\u0645\u0647\u0627\u0645 \u0627\u0644\u064a\u0648\u0645',
-    );
-    await HomeWidget.saveWidgetData<String>(
-      _subtitleKey,
-      '${_formatWidgetDate(today)} \u2022 ${visibleTasks.length} \u0645\u0647\u0645\u0629',
-    );
-    await HomeWidget.saveWidgetData<String>(_dateKey, dateKey(today));
-    await HomeWidget.saveWidgetData<String>(
-      _tasksJsonKey,
-      jsonEncode(
+    final data = <String, Object?>{
+      'widget_title': 'مهام اليوم',
+      'widget_subtitle': _formatWidgetDate(today),
+      'widget_date_key': dateKey(today),
+      'widget_done_count': done,
+      'widget_total_count': total,
+      'widget_progress': progress,
+      'widget_counter': total == 0 ? 'لا مهام' : '$done/$total',
+      'widget_message': progressMessage(done, total),
+      'widget_next_title':
+          next?.title ?? (total == 0 ? 'يومك فارغ' : 'أنجزت كل شيء 🎉'),
+      'widget_next_time': next?.timeInMinutes == null
+          ? ''
+          : formatMinutesOfDay(next!.timeInMinutes!),
+      'widget_tasks_json': jsonEncode(
         visibleTasks
             .map(
               (Task task) => <String, dynamic>{
                 'id': task.id,
                 'title': task.title,
                 'done': task.isCompletedOn(today),
+                'time': task.timeInMinutes == null
+                    ? ''
+                    : formatMinutesOfDay(task.timeInMinutes!),
+                'priority': task.priority.index,
+                'type': task.type.storageValue,
               },
             )
             .toList(),
       ),
-    );
+    };
 
-    final topThree = visibleTasks.take(3).toList();
-    for (var i = 0; i < 3; i++) {
-      final keyIndex = i + 1;
-      if (i < topThree.length) {
-        final task = topThree[i];
-        await HomeWidget.saveWidgetData<String>(
-          _taskTitleKey(keyIndex),
-          task.title,
-        );
-        await HomeWidget.saveWidgetData<String>(_taskIdKey(keyIndex), task.id);
-        await HomeWidget.saveWidgetData<bool>(
-          _taskDoneKey(keyIndex),
-          task.isCompletedOn(today),
-        );
+    for (final entry in data.entries) {
+      final value = entry.value;
+      if (value is int) {
+        await HomeWidget.saveWidgetData<int>(entry.key, value);
       } else {
-        await HomeWidget.saveWidgetData<String>(_taskTitleKey(keyIndex), null);
-        await HomeWidget.saveWidgetData<String>(_taskIdKey(keyIndex), null);
-        await HomeWidget.saveWidgetData<bool>(_taskDoneKey(keyIndex), null);
+        await HomeWidget.saveWidgetData<String>(entry.key, value as String?);
       }
     }
 
-    await HomeWidget.updateWidget(androidName: _androidProviderName);
+    await HomeWidget.updateWidget(androidName: listProviderName);
+    await HomeWidget.updateWidget(androidName: summaryProviderName);
   }
 
   String _formatWidgetDate(DateTime date) {
     try {
-      return DateFormat('d MMMM', 'ar').format(date);
+      return DateFormat('EEEE، d MMMM', 'ar').format(date);
     } catch (_) {
       return DateFormat('yyyy/MM/dd').format(date);
     }
   }
 
-  Future<bool> requestPinWidget() async {
+  Future<bool> requestPinWidget({bool summary = false}) async {
     if (!_canUseAndroidWidget) {
       return false;
     }
@@ -104,7 +99,9 @@ class WidgetSyncService {
       return false;
     }
 
-    await HomeWidget.requestPinWidget(androidName: _androidProviderName);
+    await HomeWidget.requestPinWidget(
+      androidName: summary ? summaryProviderName : listProviderName,
+    );
     return true;
   }
 

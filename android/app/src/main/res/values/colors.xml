@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand">#4F6BF6</color>
+    <color name="brand_start">#6D5DFC</color>
+    <color name="brand_end">#14C2D6</color>
+    <color name="splash_bg">#F8FAFC</color>
+    <color name="widget_bg">#FFFFFF</color>
+    <color name="widget_stroke">#E2E8F0</color>
+    <color name="widget_row">#F4F6FB</color>
+    <color name="widget_text">#0F172A</color>
+    <color name="widget_muted">#64748B</color>
+    <color name="widget_done">#10B981</color>
+    <color name="widget_track">#E5E9F5</color>
+</resources>

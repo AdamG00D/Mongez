@@ -1,0 +1,5 @@
+• Fixed: picking a reminder time no longer opens the keyboard, and a task in progress is kept while granting permissions
+• Fixed text colors in light mode
+• Redesigned options menu and a calmer celebration sound
+• The greeting follows the time of day
+• Clear explanation before the screen-time permission, and a privacy policy page

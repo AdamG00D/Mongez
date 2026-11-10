@@ -6,14 +6,46 @@ import '../models/task.dart';
 import '../models/task_type.dart';
 import '../providers/task_provider.dart';
 import '../utils/date_helpers.dart';
+import 'reminder_permissions.dart';
 
 class AddTaskSheet extends StatefulWidget {
-  const AddTaskSheet({super.key, this.initialDate, this.taskToEdit});
+  const AddTaskSheet({
+    super.key,
+    this.initialDate,
+    this.taskToEdit,
+    this.draft,
+  });
 
   final DateTime? initialDate;
   final Task? taskToEdit;
 
+  /// Form state saved by a sheet that was interrupted by a permission page
+  /// (see [LocalStorageService.loadTaskDraft]).
+  final Map<String, dynamic>? draft;
+
+  /// A draft older than this is dropped instead of restored.
+  static const Duration draftMaxAge = Duration(minutes: 30);
+
   bool get isEditing => taskToEdit != null;
+
+  static Future<void> show(
+    BuildContext context, {
+    Task? task,
+    DateTime? initialDate,
+    Map<String, dynamic>? draft,
+  }) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (BuildContext context) => AddTaskSheet(
+        taskToEdit: task,
+        initialDate: initialDate,
+        draft: draft,
+      ),
+    );
+  }
 
   @override
   State<AddTaskSheet> createState() => _AddTaskSheetState();
@@ -22,13 +54,19 @@ class AddTaskSheet extends StatefulWidget {
 class _AddTaskSheetState extends State<AddTaskSheet> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
 
   late DateTime _selectedDate;
   TimeOfDay? _selectedTime;
   TaskType _selectedType = TaskType.normal;
+  TaskPriority _priority = TaskPriority.none;
   bool _weeklyAnyDay = true;
   Set<int> _weeklyDays = <int>{};
+  int _weekStartDay = WeekSettings.defaultStartDay;
+  WeeklyReminderMode _weeklyReminder = WeeklyReminderMode.everyDayUntilDone;
+  bool _showNote = false;
   bool _isSaving = false;
+  bool _permissionsChecked = false;
 
   @override
   void initState() {
@@ -37,10 +75,15 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     final editingTask = widget.taskToEdit;
     if (editingTask != null) {
       _titleController.text = editingTask.title;
+      _noteController.text = editingTask.note ?? '';
+      _showNote = editingTask.note != null;
       _selectedDate = dateOnly(editingTask.scheduledDate);
       _selectedType = editingTask.type;
+      _priority = editingTask.priority;
       _weeklyAnyDay = editingTask.weeklyAnyDay;
       _weeklyDays = Set<int>.from(editingTask.weeklyDays);
+      _weekStartDay = editingTask.effectiveWeekStart;
+      _weeklyReminder = editingTask.weeklyReminder;
       if (editingTask.timeInMinutes != null) {
         _selectedTime = TimeOfDay(
           hour: editingTask.timeInMinutes! ~/ 60,
@@ -50,15 +93,83 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     } else {
       _selectedDate = dateOnly(widget.initialDate ?? tomorrowDate());
     }
+    final draft = widget.draft;
+    if (draft != null) {
+      _applyDraft(draft);
+    }
   }
+
+  Map<String, dynamic> _draft() => <String, dynamic>{
+    'savedAt': DateTime.now().millisecondsSinceEpoch,
+    'taskId': widget.taskToEdit?.id,
+    'title': _titleController.text,
+    'note': _noteController.text,
+    'showNote': _showNote,
+    'date': dateKey(_selectedDate),
+    'time': _selectedTime == null ? null : minutesFromTimeOfDay(_selectedTime!),
+    'type': _selectedType.name,
+    'priority': _priority.name,
+    'weeklyAnyDay': _weeklyAnyDay,
+    'weeklyDays': _weeklyDays.toList(),
+    'weekStartDay': _weekStartDay,
+    'weeklyReminder': _weeklyReminder.name,
+  };
+
+  void _applyDraft(Map<String, dynamic> draft) {
+    T? byName<T extends Enum>(List<T> values, Object? name) {
+      for (final value in values) {
+        if (value.name == name) {
+          return value;
+        }
+      }
+      return null;
+    }
+
+    try {
+      _titleController.text = draft['title'] as String? ?? '';
+      _noteController.text = draft['note'] as String? ?? '';
+      _showNote =
+          draft['showNote'] == true || _noteController.text.trim().isNotEmpty;
+      final date = draft['date'];
+      if (date is String) {
+        _selectedDate = dateFromKey(date);
+      }
+      final time = draft['time'];
+      _selectedTime = time is int
+          ? TimeOfDay(hour: time ~/ 60, minute: time % 60)
+          : null;
+      _selectedType = byName(TaskType.values, draft['type']) ?? _selectedType;
+      _priority = byName(TaskPriority.values, draft['priority']) ?? _priority;
+      _weeklyAnyDay = draft['weeklyAnyDay'] as bool? ?? _weeklyAnyDay;
+      final days = draft['weeklyDays'];
+      if (days is List) {
+        _weeklyDays = days.whereType<int>().toSet();
+      }
+      final weekStart = draft['weekStartDay'];
+      if (weekStart is int && weekStart >= 1 && weekStart <= 7) {
+        _weekStartDay = weekStart;
+      }
+      _weeklyReminder =
+          byName(WeeklyReminderMode.values, draft['weeklyReminder']) ??
+          _weeklyReminder;
+    } catch (_) {
+      // A malformed draft just means starting from what was already set.
+    }
+  }
+
+  /// Closes the keyboard and makes sure the title field doesn't grab focus
+  /// again when a picker or dialog on top of the sheet closes.
+  void _dropFocus() => FocusManager.instance.primaryFocus?.unfocus();
 
   @override
   void dispose() {
     _titleController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
   Future<void> _pickDate() async {
+    _dropFocus();
     final pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -66,41 +177,52 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       lastDate: DateTime(2100),
       locale: const Locale('ar'),
     );
-
-    if (pickedDate == null) {
-      return;
+    if (pickedDate != null) {
+      setState(() => _selectedDate = dateOnly(pickedDate));
     }
-
-    setState(() {
-      _selectedDate = dateOnly(pickedDate);
-    });
   }
 
   Future<void> _pickTime() async {
+    _dropFocus();
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? const TimeOfDay(hour: 21, minute: 0),
     );
+    if (pickedTime != null) {
+      setState(() => _selectedTime = pickedTime);
+      await _checkReminderPermissions();
+    }
+  }
 
-    if (pickedTime == null) {
+  Future<void> _checkReminderPermissions() async {
+    if (_permissionsChecked || !mounted) {
       return;
     }
-
-    setState(() {
-      _selectedTime = pickedTime;
-    });
+    _permissionsChecked = true;
+    _dropFocus();
+    // The permission pages take the user out of the app. Keep what they wrote
+    // so it can be brought back if the sheet doesn't survive the trip.
+    final storage = context.read<TaskProvider>().storageService;
+    await storage.saveTaskDraft(_draft());
+    if (!mounted) {
+      return;
+    }
+    try {
+      await ensureReminderPermissions(context);
+    } finally {
+      if (mounted) {
+        await storage.clearTaskDraft();
+      }
+    }
   }
 
   Future<void> _submit() async {
     if (_isSaving) {
       return;
     }
-
-    final isValid = _formKey.currentState?.validate() ?? false;
-    if (!isValid) {
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
-
     if (_selectedType == TaskType.weekly &&
         !_weeklyAnyDay &&
         _weeklyDays.isEmpty) {
@@ -112,14 +234,23 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       return;
     }
 
-    setState(() {
-      _isSaving = true;
-    });
+    if (_selectedTime != null) {
+      // Editing a task that already had a time: still verify permissions.
+      await _checkReminderPermissions();
+      if (!mounted) {
+        return;
+      }
+    }
+
+    setState(() => _isSaving = true);
 
     final provider = context.read<TaskProvider>();
     final timeInMinutes = _selectedTime == null
         ? null
         : minutesFromTimeOfDay(_selectedTime!);
+    final weekStart = _weekStartDay == WeekSettings.defaultStartDay
+        ? null
+        : _weekStartDay;
 
     if (widget.isEditing) {
       await provider.updateTask(
@@ -130,6 +261,10 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         timeInMinutes: timeInMinutes,
         weeklyAnyDay: _weeklyAnyDay,
         weeklyDays: _weeklyDays,
+        weekStartDay: weekStart,
+        weeklyReminder: _weeklyReminder,
+        priority: _priority,
+        note: _noteController.text,
       );
     } else {
       await provider.addTask(
@@ -139,31 +274,42 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         timeInMinutes: timeInMinutes,
         weeklyAnyDay: _weeklyAnyDay,
         weeklyDays: _weeklyDays,
+        weekStartDay: weekStart,
+        weeklyReminder: _weeklyReminder,
+        priority: _priority,
+        note: _noteController.text,
       );
     }
 
-    if (!mounted) {
-      return;
+    if (mounted) {
+      Navigator.of(context).pop();
     }
-    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final dateLabel = DateFormat('EEEE، d MMMM', 'ar').format(_selectedDate);
-    final timeLabel = _selectedTime == null
-        ? 'بدون وقت'
-        : MaterialLocalizations.of(context).formatTimeOfDay(_selectedTime!);
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final today = todayDate();
+    final tomorrow = tomorrowDate();
+    final isCustomDate =
+        !isSameDate(_selectedDate, today) &&
+        !isSameDate(_selectedDate, tomorrow);
+    final dateLabel = DateFormat('EEEE d MMMM', 'ar').format(_selectedDate);
+
+    Widget label(String text) => Padding(
+      padding: const EdgeInsets.only(top: 18, bottom: 8),
+      child: Text(
+        text,
+        style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+      ),
+    );
 
     return Padding(
-      padding: EdgeInsets.only(
-        left: 18,
-        right: 18,
-        top: 8,
-        bottom: bottomInset + 18,
-      ),
+      padding: EdgeInsets.only(bottom: bottomInset),
       child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         child: Form(
           key: _formKey,
           child: Column(
@@ -171,185 +317,272 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                widget.isEditing ? 'تعديل المهمة' : 'إضافة مهمة جديدة',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+                widget.isEditing ? 'تعديل المهمة' : 'مهمة جديدة',
+                style: textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                widget.isEditing
-                    ? 'حدّث تفاصيل المهمة بسرعة.'
-                    : 'خطوة صغيرة الآن تصنع يومًا أفضل غدًا.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _titleController,
-                textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(
-                  labelText: 'اسم المهمة',
-                  hintText: 'مثال: تجهيز حقيبة العمل',
-                ),
-                validator: (String? value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'اسم المهمة مطلوب';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 14),
-              Row(
+              TextFormField(
+                controller: _titleController,
+                autofocus: !widget.isEditing && widget.draft == null,
+                textInputAction: TextInputAction.done,
+                textCapitalization: TextCapitalization.sentences,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+                decoration: const InputDecoration(
+                  hintText: 'ماذا تريد أن تنجز؟',
+                  prefixIcon: Icon(Icons.edit_note_rounded),
+                ),
+                validator: (String? value) =>
+                    (value == null || value.trim().isEmpty)
+                    ? 'اكتب اسم المهمة'
+                    : null,
+                onFieldSubmitted: (_) => _submit(),
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                child: _showNote
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: TextField(
+                          controller: _noteController,
+                          minLines: 2,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            hintText: 'ملاحظات أو تفاصيل (اختياري)',
+                            prefixIcon: Icon(Icons.notes_rounded),
+                          ),
+                        ),
+                      )
+                    : Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: TextButton.icon(
+                          onPressed: () => setState(() => _showNote = true),
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('إضافة ملاحظة'),
+                        ),
+                      ),
+              ),
+              label('النوع'),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<TaskType>(
+                  showSelectedIcon: false,
+                  segments: TaskType.values
+                      .map(
+                        (TaskType type) => ButtonSegment<TaskType>(
+                          value: type,
+                          icon: Icon(type.icon, size: 18),
+                          label: Text(type.label),
+                        ),
+                      )
+                      .toList(),
+                  selected: <TaskType>{_selectedType},
+                  onSelectionChanged: (Set<TaskType> values) =>
+                      setState(() => _selectedType = values.first),
+                ),
+              ),
+              label(_selectedType == TaskType.normal ? 'اليوم' : 'تبدأ من'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: <Widget>[
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickDate,
-                      icon: const Icon(Icons.calendar_month_rounded),
-                      label: Text(dateLabel),
-                    ),
+                  ChoiceChip(
+                    label: const Text('اليوم'),
+                    selected: isSameDate(_selectedDate, today),
+                    onSelected: (_) => setState(() => _selectedDate = today),
+                  ),
+                  ChoiceChip(
+                    label: const Text('غدًا'),
+                    selected: isSameDate(_selectedDate, tomorrow),
+                    onSelected: (_) => setState(() => _selectedDate = tomorrow),
+                  ),
+                  ChoiceChip(
+                    avatar: const Icon(Icons.calendar_month_rounded, size: 18),
+                    label: Text(isCustomDate ? dateLabel : 'تاريخ آخر'),
+                    selected: isCustomDate,
+                    onSelected: (_) => _pickDate(),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              label('الوقت والتذكير'),
               Row(
                 children: <Widget>[
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _pickTime,
-                      icon: const Icon(Icons.schedule_rounded),
-                      label: Text(timeLabel),
+                      icon: Icon(
+                        _selectedTime == null
+                            ? Icons.alarm_add_rounded
+                            : Icons.alarm_on_rounded,
+                      ),
+                      label: Text(
+                        _selectedTime == null
+                            ? 'بدون وقت (بدون تذكير)'
+                            : 'تذكير ${MaterialLocalizations.of(context).formatTimeOfDay(_selectedTime!)}',
+                      ),
                     ),
                   ),
                   if (_selectedTime != null) ...<Widget>[
                     const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedTime = null;
-                        });
-                      },
+                    IconButton.filledTonal(
+                      onPressed: () => setState(() => _selectedTime = null),
                       icon: const Icon(Icons.close_rounded),
                       tooltip: 'حذف الوقت',
                     ),
                   ],
                 ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                'نوع المهمة',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              if (_selectedType == TaskType.weekly) _weeklyOptions(context),
+              label('الأولوية'),
+              Wrap(
+                spacing: 8,
+                children: TaskPriority.values.map((TaskPriority p) {
+                  return ChoiceChip(
+                    avatar: Icon(
+                      Icons.circle,
+                      size: 12,
+                      color: p == TaskPriority.none ? scheme.outline : p.color,
+                    ),
+                    label: Text(p.label),
+                    selected: _priority == p,
+                    onSelected: (_) => setState(() => _priority = p),
+                  );
+                }).toList(),
               ),
-              const SizedBox(height: 8),
-              SegmentedButton<TaskType>(
-                showSelectedIcon: false,
-                segments: const <ButtonSegment<TaskType>>[
-                  ButtonSegment<TaskType>(
-                    value: TaskType.normal,
-                    icon: Icon(Icons.task_outlined),
-                    label: Text('عادية'),
-                  ),
-                  ButtonSegment<TaskType>(
-                    value: TaskType.daily,
-                    icon: Icon(Icons.repeat_rounded),
-                    label: Text('يومية'),
-                  ),
-                  ButtonSegment<TaskType>(
-                    value: TaskType.weekly,
-                    icon: Icon(Icons.view_week_rounded),
-                    label: Text('أسبوعية'),
-                  ),
-                ],
-                selected: <TaskType>{_selectedType},
-                onSelectionChanged: (Set<TaskType> selectedValues) {
-                  setState(() {
-                    _selectedType = selectedValues.first;
-                  });
-                },
-              ),
-              if (_selectedType == TaskType.weekly) ...<Widget>[
-                const SizedBox(height: 14),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.35),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _weeklyAnyDay,
-                        onChanged: (bool? value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() {
-                            _weeklyAnyDay = value;
-                            if (value) {
-                              _weeklyDays = <int>{};
-                            }
-                          });
-                        },
-                        title: const Text('مرة واحدة في الأسبوع (أي يوم)'),
-                        controlAffinity: ListTileControlAffinity.leading,
-                      ),
-                      if (!_weeklyAnyDay) ...<Widget>[
-                        const SizedBox(height: 6),
-                        const Text('اختر الأيام المتاحة لهذه المهمة:'),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: weekDayDisplayOrder.map((int day) {
-                            final selected = _weeklyDays.contains(day);
-                            return FilterChip(
-                              selected: selected,
-                              label: Text(arabicWeekDayNames[day]!),
-                              onSelected: (bool value) {
-                                setState(() {
-                                  if (value) {
-                                    _weeklyDays.add(day);
-                                  } else {
-                                    _weeklyDays.remove(day);
-                                  }
-                                });
-                              },
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 18),
+              const SizedBox(height: 22),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: _submit,
                   icon: _isSaving
                       ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : const Icon(Icons.save_rounded),
+                      : const Icon(Icons.check_rounded),
                   label: Text(
-                    _isSaving
-                        ? 'جارٍ الحفظ...'
-                        : widget.isEditing
-                        ? 'حفظ التعديلات'
-                        : 'حفظ المهمة',
+                    widget.isEditing ? 'حفظ التعديلات' : 'إضافة المهمة',
                   ),
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _weeklyOptions(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: scheme.primary.withValues(alpha: 0.06),
+        border: Border.all(color: scheme.primary.withValues(alpha: 0.15)),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'يبدأ الأسبوع يوم',
+              style: textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: weekDaysOrdered(DateTime.saturday).map((int day) {
+                  return Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 6),
+                    child: ChoiceChip(
+                      label: Text(arabicWeekDayNames[day]!),
+                      selected: _weekStartDay == day,
+                      onSelected: (_) => setState(() => _weekStartDay = day),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _weeklyAnyDay,
+              onChanged: (bool value) => setState(() {
+                _weeklyAnyDay = value;
+                if (value) {
+                  _weeklyDays = <int>{};
+                }
+              }),
+              title: const Text('مرة واحدة في أي يوم من الأسبوع'),
+            ),
+            if (!_weeklyAnyDay) ...<Widget>[
+              const Text('الأيام المتاحة:'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: weekDaysOrdered(_weekStartDay).map((int day) {
+                  return FilterChip(
+                    showCheckmark: false,
+                    selected: _weeklyDays.contains(day),
+                    label: Text(arabicWeekDayNames[day]!),
+                    onSelected: (bool value) => setState(() {
+                      if (value) {
+                        _weeklyDays.add(day);
+                      } else {
+                        _weeklyDays.remove(day);
+                      }
+                    }),
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Text(
+              'إذا لم تُنجز، ذكّرني',
+              style: textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: WeeklyReminderMode.values.map((
+                WeeklyReminderMode mode,
+              ) {
+                return ChoiceChip(
+                  label: Text(mode.label),
+                  selected: _weeklyReminder == mode,
+                  onSelected: (_) => setState(() => _weeklyReminder = mode),
+                );
+              }).toList(),
+            ),
+            if (_selectedTime == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'حدّد وقتًا للمهمة لتفعيل التذكيرات.',
+                  style: textTheme.bodySmall?.copyWith(color: scheme.error),
+                ),
+              ),
+          ],
         ),
       ),
     );
