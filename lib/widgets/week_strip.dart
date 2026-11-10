@@ -33,26 +33,36 @@ class WeekStrip extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onPickDate,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Row(
-                  children: <Widget>[
-                    Text(
-                      monthLabel,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+            Flexible(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: onPickDate,
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(
+                    start: 6,
+                    end: 2,
+                    top: 4,
+                    bottom: 4,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Flexible(
+                        child: Text(
+                          monthLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.expand_more_rounded,
-                      size: 20,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ],
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.expand_more_rounded,
+                        size: 20,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -60,15 +70,19 @@ class WeekStrip extends StatelessWidget {
             if (!isSameDate(selectedDate, today))
               TextButton(
                 onPressed: () => onSelect(today),
+                style: _compactHeaderButtonStyle,
                 child: const Text('اليوم'),
               ),
             if (!isSameDate(selectedDate, addDays(today, 1)))
               TextButton(
                 onPressed: () => onSelect(addDays(today, 1)),
+                style: _compactHeaderButtonStyle,
                 child: const Text('غدًا'),
               ),
             IconButton(
               visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
               tooltip: 'الأسبوع السابق',
               onPressed: () => onSelect(addDays(selectedDate, -7)),
               // Auto-mirrored in RTL: points right (= back in Arabic).
@@ -76,6 +90,8 @@ class WeekStrip extends StatelessWidget {
             ),
             IconButton(
               visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
               tooltip: 'الأسبوع التالي',
               onPressed: () => onSelect(addDays(selectedDate, 7)),
               icon: const Icon(Icons.chevron_right_rounded),
@@ -113,6 +129,15 @@ class WeekStrip extends StatelessWidget {
     );
   }
 }
+
+const ButtonStyle _compactHeaderButtonStyle = ButtonStyle(
+  minimumSize: WidgetStatePropertyAll<Size>(Size.zero),
+  padding: WidgetStatePropertyAll<EdgeInsetsGeometry>(
+    EdgeInsets.symmetric(horizontal: 4),
+  ),
+  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  visualDensity: VisualDensity.compact,
+);
 
 class _DayCell extends StatelessWidget {
   const _DayCell({
