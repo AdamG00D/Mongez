@@ -93,7 +93,7 @@ class NotificationService {
     );
 
     await _plugin.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: _responses.add,
       onDidReceiveBackgroundNotificationResponse: backgroundHandler,
     );
@@ -299,7 +299,7 @@ class NotificationService {
         final day = dateFromKey(parts[2]);
         final task = tasks.where((Task t) => t.id == parts[1]).firstOrNull;
         if (task == null || task.isCompletedOn(day)) {
-          await _plugin.cancel(shown.id!);
+          await _plugin.cancel(id: shown.id!);
         }
       }
     } catch (_) {
@@ -342,12 +342,12 @@ class NotificationService {
           continue; // The alarm already fired.
         }
         try {
-          await _plugin.cancel(item.id);
+          await _plugin.cancel(id: item.id);
           await _plugin.show(
-            item.id,
-            item.title,
-            item.body,
-            _details(item),
+            id: item.id,
+            title: item.title,
+            body: item.body,
+            notificationDetails: _details(item),
             payload: item.payload,
           );
         } catch (_) {}
@@ -557,11 +557,11 @@ class NotificationService {
     final details = _details(item);
 
     Future<void> attempt(AndroidScheduleMode mode) => _plugin.zonedSchedule(
-      item.id,
-      item.title,
-      item.body,
-      item.at,
-      details,
+      id: item.id,
+      title: item.title,
+      body: item.body,
+      scheduledDate: item.at,
+      notificationDetails: details,
       androidScheduleMode: mode,
       payload: item.payload,
     );
