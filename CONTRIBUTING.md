@@ -24,7 +24,7 @@ flutter pub get
 flutter run
 ```
 
-See the [README](README.md#getting-started) for requirements and release builds. You don't need
+See the [README](README.en.md#getting-started) for requirements and release builds. You don't need
 a signing key: debug builds and unsigned release builds work out of the box.
 
 ## Workflow
@@ -71,4 +71,4 @@ on a real device and mention it in the PR:
 
 ## License
 
-By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
+By contributing, you agree that your contributions are licensed under the [GPL-3.0 License](LICENSE).

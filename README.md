@@ -1,84 +1,83 @@
 <div align="center">
 
-<img src="assets/icon.png" width="96" alt="Mongez logo" />
+<img src="assets/icon.png" width="96" alt="شعار مُنجز" />
 
-# Mongez · مُنجز
+# مُنجز · Mongez
 
-**A free, open-source, offline-first Arabic (RTL) planner for Android.**
-Plan your day, keep your streaks, track yearly goals and screen time. No accounts, no ads, no tracking.
+**منظّم يومي مجاني ومفتوح المصدر لأندرويد، بالعربية بالكامل.**
+<br>
+خطّط يومك، وحافظ على استمراريتك، وتابع أهدافك السنوية ووقت الشاشة. بلا حساب ولا إعلانات ولا إنترنت.
 
+[![آخر إصدار](https://img.shields.io/github/v/release/AdamG00D/Mongez?label=download)](https://github.com/AdamG00D/Mongez/releases/latest)
 [![Flutter CI](https://github.com/AdamG00D/Mongez/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/AdamG00D/Mongez/actions/workflows/flutter-ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/AdamG00D/Mongez?label=download)](https://github.com/AdamG00D/Mongez/releases/latest)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[العربية](#بالعربية) · [Download](#download) · [Features](#features) · [Getting started](#getting-started) · [Contributing](#contributing)
+**[English](README.en.md)** · [التحميل](#التحميل) · [المميزات](#المميزات) · [الخصوصية](#الخصوصية) · [المساهمة](#المساهمة)
+
+<img src="fastlane/metadata/android/ar/images/phoneScreenshots/1_tasks.png" width="180" alt="المهام" />
+<img src="fastlane/metadata/android/ar/images/phoneScreenshots/3_goals.png" width="180" alt="الأهداف" />
+<img src="fastlane/metadata/android/ar/images/phoneScreenshots/4_history.png" width="180" alt="السجل" />
+<img src="fastlane/metadata/android/ar/images/phoneScreenshots/6_dark.png" width="180" alt="الوضع الداكن" />
 
 </div>
 
----
+<div dir="rtl">
 
-## Download
+## التحميل
 
-Get the latest APK from the **[Releases page](https://github.com/AdamG00D/Mongez/releases/latest)**
-(Android 7.0+).
+نزّل أحدث نسخة من **[صفحة الإصدارات](https://github.com/AdamG00D/Mongez/releases/latest)**
+(يعمل على أندرويد 7.0 فأحدث).
 
-| File | For |
+| الملف | لمن؟ |
 | --- | --- |
-| `Mongez-<version>-arm64-v8a.apk` | Most phones from the last few years (recommended) |
-| `Mongez-<version>-armeabi-v7a.apk` | Older 32-bit phones |
-| `Mongez-<version>.apk` | Universal: works on any device, larger download |
+| `Mongez-<الإصدار>-arm64-v8a.apk` | معظم الهواتف الحديثة (**الأنسب لأغلب الناس**) |
+| `Mongez-<الإصدار>-armeabi-v7a.apk` | الهواتف القديمة (32 بت) |
+| `Mongez-<الإصدار>.apk` | نسخة عامة تعمل على أي جهاز، لكن حجمها أكبر |
 
-Open the file on your phone and allow installing from this source when asked. Each release
-lists SHA-256 checksums in `SHA256SUMS.txt`. Upgrading from 2.0.1 or older? Those builds used a
-different signing key, so uninstall the old version first (export a backup from Settings
-before you do).
+**طريقة التثبيت:** افتح الملف من الهاتف، ووافق على «التثبيت من هذا المصدر» عند السؤال.
 
-## Features
+> [!IMPORTANT]
+> **عندك الإصدار 2.0.1 أو أقدم؟** مفتاح توقيع التطبيق تغيّر، فلن يتحدث التطبيق القديم مباشرة.
+> خذ نسخة احتياطية أولًا (الإعدادات ← البيانات ← حفظ نسخة احتياطية)، ثم احذف التطبيق القديم، وثبّت الجديد، واسترجع النسخة.
 
-- **Tasks:** one-off, daily and weekly tasks with priority, notes and reminder time.
-  Drag-and-drop ordering, sort by time or priority, swipe to complete or delete (with undo),
-  postpone, copy to tomorrow, carry unfinished tasks over.
-- **Weekly tasks:** configurable first day of the week and "remind until done" modes.
-- **History & stats:** a completion log that survives task deletion, per-type counters,
-  streaks, a 7-day chart and most-completed tasks. You can delete single entries, all
-  entries of one task, or the whole log.
-- **Yearly goals:** milestone or numeric goals, progress vs. elapsed year, weekly motivation.
-- **Screen time:** screen-on time, unlocks, per-app usage and daily limits (Android Usage
-  Access; data never leaves the device).
-- **Reminders:** exact-time notifications (also while the app is open) with a "Done ✓" action,
-  follow-ups for unfinished tasks and an evening "plan tomorrow" reminder.
-- **Look & feel:** 9 color themes, light / dark / AMOLED, built-in or photo backgrounds,
-  celebration effects with sound.
-- **Home-screen widgets:** a task list and a summary widget.
-- **Backup / restore** to a JSON file. Fully offline.
+على أندرويد 13 فأحدث، إذا ظهرت رسالة “Controlled by restricted setting” (أو ما يقابلها بلغة هاتفك) عند تفعيل وقت الشاشة، افتح
+معلومات التطبيق ← ⋮ ← «السماح بالإعدادات المحظورة». التطبيق يشرح لك الخطوات.
 
-## Privacy
+## المميزات
 
-No account, no ads, no trackers, and no Internet permission. See the [privacy policy](PRIVACY.md).
-Store listing texts and graphics live in [`fastlane/metadata/android`](fastlane/metadata/android);
-the Google Play release steps are in [`docs/GOOGLE_PLAY.md`](docs/GOOGLE_PLAY.md) (Arabic).
+- **المهام:** مهام لمرة واحدة ويومية وأسبوعية، مع الأولوية والملاحظات ووقت التذكير.
+  ترتيب بالسحب، وفرز حسب الوقت أو الأولوية، وسحب المهمة لإنجازها أو حذفها (مع تراجع)،
+  وتأجيل، ونسخ للغد، ونقل المهام غير المنجزة.
+- **المهام الأسبوعية:** تختار أول يوم في الأسبوع، وطريقة «ذكّرني حتى أنجزها».
+- **السجل والإحصائيات:** سجل إنجازات لا يضيع عند حذف المهمة، وعدّادات لكل نوع، وأيام متتالية،
+  ورسم بياني لآخر 7 أيام، وأكثر المهام إنجازًا. ويمكنك حذف أي إنجاز منه، أو كل إنجازات مهمة، أو السجل كله.
+- **الأهداف السنوية:** أهداف بمراحل أو بأرقام، مع مقارنة تقدّمك بما مضى من السنة، وتحفيز أسبوعي.
+- **وقت الشاشة:** مدة تشغيل الشاشة، ومرات فتح الهاتف، واستخدام كل تطبيق، وحد يومي للتطبيقات التي تختارها.
+  البيانات لا تغادر جهازك.
+- **التذكيرات:** إشعارات في موعدها بالضبط (حتى والتطبيق مفتوح) مع زر «تم الإنجاز ✓»، ومتابعة للمهام غير المنجزة،
+  وتذكير مسائي لتخطيط الغد.
+- **الشكل:** 9 ثيمات ألوان، فاتح / داكن / أسود AMOLED، وخلفيات جاهزة أو من صورك، واحتفال بالصوت عند الإنجاز.
+- **ويدجت للشاشة الرئيسية:** قائمة المهام، وملخص اليوم.
+- **نسخ احتياطي واسترجاع** في ملف JSON. يعمل بالكامل بدون إنترنت.
 
-## Tech stack
+## الخصوصية
 
-| Area | Choice |
-| --- | --- |
-| UI | Flutter (Material 3), Arabic RTL first |
-| State | [`provider`](https://pub.dev/packages/provider) |
-| Storage | [`shared_preferences`](https://pub.dev/packages/shared_preferences) (JSON) |
-| Notifications | [`flutter_local_notifications`](https://pub.dev/packages/flutter_local_notifications) + `timezone` |
-| Widgets | [`home_widget`](https://pub.dev/packages/home_widget) + native `RemoteViews` (Kotlin) |
-| Screen time / sounds | Small Kotlin method channels (`ScreenTimeChannel.kt`, `SystemChannel.kt`) |
+لا حساب، ولا إعلانات، ولا أدوات تتبّع، والتطبيق لا يطلب صلاحية الإنترنت أصلًا.
+التفاصيل في [سياسة الخصوصية](PRIVACY.md).
 
-## Getting started
+## المساهمة
 
-### Requirements
+المساهمات مرحّب بها بالعربية أو الإنجليزية:
 
-- Flutter stable with Dart **3.11.3+** (see `environment` in `pubspec.yaml`; developed on 3.47)
-- Android SDK and JDK 17+
-- An Android device or emulator. Android is the main target; iOS isn't set up.
+- **وجدت مشكلة؟** افتح [بلاغًا جديدًا](https://github.com/AdamG00D/Mongez/issues/new/choose) واذكر خطوات حدوثها ونوع هاتفك.
+- **عندك فكرة؟** اقترحها من قالب «Feature request».
+- **تريد المساهمة بالكود؟** اقرأ [دليل المساهمة](CONTRIBUTING.md) و[قواعد السلوك](CODE_OF_CONDUCT.md).
+  التعليمات التقنية (التشغيل، والبناء، وبنية المشروع) موجودة في [README بالإنجليزية](README.en.md#getting-started).
+- **ثغرة أمنية؟** أبلغ عنها بشكل خاص كما في [SECURITY.md](SECURITY.md).
 
-### Run
+### تشغيل المشروع بسرعة
+
+</div>
 
 ```bash
 git clone https://github.com/AdamG00D/Mongez.git
@@ -87,78 +86,11 @@ flutter pub get
 flutter run
 ```
 
-### Checks (run these before opening a PR)
+<div dir="rtl">
 
-```bash
-dart format lib test
-flutter analyze
-flutter test
-```
+## الترخيص
 
-### Release build
+[GPL-3.0](LICENSE) © AdamG00D والمساهمون. يمكنك استخدام الكود وتعديله وتوزيعه، بشرط أن يبقى أي عمل مشتق
+مفتوح المصدر بنفس الترخيص.
 
-Release signing reads `android/key.properties`, which is git-ignored. Copy
-[`android/key.properties.example`](android/key.properties.example) and point it to your own
-keystore. Without it, `flutter build apk --release` falls back to the debug key, which is fine
-for local testing. `build_release.sh` refuses to run without a key unless you set
-`ALLOW_DEBUG_SIGNING=1`.
-
-```bash
-./build_release.sh        # analyze + test + signed APKs (universal and per-ABI)
-./build_release.sh aab    # analyze + test + signed App Bundle
-```
-
-If your Flutter, Android SDK or JDK aren't on `PATH`, set `TOOLCHAINS` to a folder containing
-`flutter/`, `android-sdk/` and `jdk-*`, or export `ANDROID_HOME` and `JAVA_HOME` yourself.
-
-## Project structure
-
-```text
-lib/
-  models/      plain data classes (Task, CompletionRecord, Goal, AppSettings, ...)
-  providers/   ChangeNotifiers that own app state (tasks, goals, settings, screen time)
-  screens/     one file per tab + the shell with the bottom navigation
-  services/    storage, notifications, widgets, backup, platform channels
-  theme/       palettes, backgrounds, ThemeData
-  utils/       date helpers (week start, keys), motivation texts
-  widgets/     reusable UI (task card, sheets, week strip, charts)
-android/app/src/main/kotlin/   widget providers, screen-time and system channels
-test/          logic tests + UI smoke tests
-```
-
-Some rules that keep the data consistent:
-
-- **History** is a log of completions. Deleting or editing a task never removes its records.
-  Records go away only when the same occurrence is un-checked, or when the user deletes them
-  from the History tab.
-- All completion changes go through `TaskMutations.toggle`, so the UI, widget taps and
-  notification actions record history the same way.
-- Week calculations always go through `utils/date_helpers.dart` (`startOfWeek`, `weekKey`).
-
-## Contributing
-
-Contributions of all sizes are welcome: bug reports, translations, UI polish, features and
-tests. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and our
-[Code of Conduct](CODE_OF_CONDUCT.md) first. Security issues: see [SECURITY.md](SECURITY.md).
-
-## License
-
-[GPL-3.0](LICENSE) © AdamG00D and contributors.
-
----
-
-## بالعربية
-
-**مُنجز** تطبيق مفتوح المصدر ومجاني لتنظيم اليوم باللغة العربية. يعمل بدون إنترنت وبدون حسابات أو إعلانات.
-
-- مهام لمرة واحدة ويومية وأسبوعية، مع الأولوية والملاحظات ووقت التذكير وترتيب بالسحب.
-- سجل للإنجازات لا يضيع عند حذف المهمة، مع إمكانية حذف أي إنجاز منه يدويًا.
-- أهداف سنوية، ووقت الشاشة، وثيمات وخلفيات، وويدجت للشاشة الرئيسية.
-- تذكيرات في موعدها حتى والتطبيق مفتوح، مع زر «تم الإنجاز» داخل الإشعار.
-
-**التحميل:** نزّل ملف APK من [صفحة الإصدارات](https://github.com/AdamG00D/Mongez/releases/latest).
-لو مش عارف تختار، نزّل ملف `arm64-v8a` (مناسب لمعظم الموبايلات الحديثة) أو النسخة العامة.
-لو عندك إصدار 2.0.1 أو أقدم، احذفه الأول (بعد ما تاخد نسخة احتياطية من الإعدادات) لأن مفتاح التوقيع اتغير.
-
-**للمساهمة:** اقرأ [دليل المساهمة](CONTRIBUTING.md). المساهمات مرحب بها بالعربية أو الإنجليزية:
-بلاغ عن مشكلة، أو اقتراح ميزة، أو Pull Request.
+</div>
