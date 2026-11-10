@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/icon.png" width="96" alt="Mongez logo" />
+<img src="docs/banner.png" alt="Mongez: plan your day, track your goals, know your screen time" />
 
 # Mongez · مُنجز
 

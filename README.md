@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/icon.png" width="96" alt="شعار مُنجز" />
+<img src="docs/banner.png" alt="مُنجز: خطّط يومك، تابع أهدافك، اعرف وقتك" />
 
 # مُنجز · Mongez
 
@@ -13,11 +13,6 @@
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 
 **[English](README.en.md)** · [التحميل](#التحميل) · [المميزات](#المميزات) · [الخصوصية](#الخصوصية) · [المساهمة](#المساهمة)
-
-<img src="fastlane/metadata/android/ar/images/phoneScreenshots/1_tasks.png" width="180" alt="المهام" />
-<img src="fastlane/metadata/android/ar/images/phoneScreenshots/3_goals.png" width="180" alt="الأهداف" />
-<img src="fastlane/metadata/android/ar/images/phoneScreenshots/4_history.png" width="180" alt="السجل" />
-<img src="fastlane/metadata/android/ar/images/phoneScreenshots/6_dark.png" width="180" alt="الوضع الداكن" />
 
 </div>
 
@@ -59,6 +54,19 @@
 - **الشكل:** 9 ثيمات ألوان، فاتح / داكن / أسود AMOLED، وخلفيات جاهزة أو من صورك، واحتفال بالصوت عند الإنجاز.
 - **ويدجت للشاشة الرئيسية:** قائمة المهام، وملخص اليوم.
 - **نسخ احتياطي واسترجاع** في ملف JSON. يعمل بالكامل بدون إنترنت.
+
+## صور من التطبيق
+
+</div>
+<div align="center">
+
+<img src="fastlane/metadata/android/ar/images/phoneScreenshots/1_tasks.png" width="180" alt="المهام" />
+<img src="fastlane/metadata/android/ar/images/phoneScreenshots/3_goals.png" width="180" alt="الأهداف" />
+<img src="fastlane/metadata/android/ar/images/phoneScreenshots/4_history.png" width="180" alt="السجل" />
+<img src="fastlane/metadata/android/ar/images/phoneScreenshots/6_dark.png" width="180" alt="الوضع الداكن" />
+
+</div>
+<div dir="rtl">
 
 ## الخصوصية
 
