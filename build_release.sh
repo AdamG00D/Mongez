@@ -4,7 +4,8 @@
 #   ./build_release.sh aab      -> Android App Bundle for Google Play
 #
 # Toolchains: uses flutter / java from PATH. If they live elsewhere, set
-# TOOLCHAINS to a folder containing flutter/, android-sdk/ and jdk-*.
+# TOOLCHAINS to a folder containing flutter/, android-sdk/ and jdk-*. A JDK 21 found
+# there is preferred (the Android build needs it). Gradle daemons are stopped at the end.
 # Signing: android/key.properties (see key.properties.example). Set
 # ALLOW_DEBUG_SIGNING=1 to build without it (debug-signed, for testing only).
 set -euo pipefail
@@ -14,7 +15,10 @@ if [[ -d "$TOOLCHAINS" ]]; then
   if [[ -z "${ANDROID_HOME:-}" && -d "$TOOLCHAINS/android-sdk" ]]; then
     export ANDROID_HOME="$TOOLCHAINS/android-sdk"
   fi
-  if [[ -z "${JAVA_HOME:-}" ]] && compgen -G "$TOOLCHAINS/jdk-*" >/dev/null; then
+  if compgen -G "$TOOLCHAINS/jdk-21*" >/dev/null; then
+    JAVA_HOME="$(ls -d "$TOOLCHAINS"/jdk-21* | head -n1)"
+    export JAVA_HOME
+  elif [[ -z "${JAVA_HOME:-}" ]] && compgen -G "$TOOLCHAINS/jdk-*" >/dev/null; then
     JAVA_HOME="$(ls -d "$TOOLCHAINS"/jdk-* | head -n1)"
     export JAVA_HOME
   fi
@@ -26,6 +30,9 @@ fi
 command -v flutter >/dev/null || { echo "flutter not found on PATH (or set TOOLCHAINS)." >&2; exit 1; }
 
 cd "$(dirname "$0")"
+
+# Gradle daemons keep gigabytes of RAM after the build; stop them however we exit.
+trap '(cd android && ./gradlew --stop >/dev/null 2>&1) || true' EXIT
 
 if [[ ! -f android/key.properties ]]; then
   if [[ "${ALLOW_DEBUG_SIGNING:-0}" == "1" ]]; then
