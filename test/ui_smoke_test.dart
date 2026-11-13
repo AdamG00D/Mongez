@@ -171,7 +171,17 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('زمردي'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('نقاط'));
+      final settingsList = find
+          .descendant(
+            of: find.byType(SettingsScreen),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(
+        find.text('نقاط'),
+        200,
+        scrollable: settingsList,
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('نقاط'));
       await tester.pumpAndSettle();

@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:mongez/app.dart';
 import 'package:mongez/app_navigation.dart';
+import 'package:mongez/l10n/l10n.dart';
 import 'package:mongez/models/app_settings.dart';
 import 'package:mongez/models/completion_record.dart';
 import 'package:mongez/models/task_type.dart';
@@ -74,7 +75,11 @@ void main() {
     final storage = LocalStorageService();
     settings = SettingsProvider(storage);
     await settings.initialize();
-    await settings.update((s) => s.copyWith(themeMode: ThemeMode.light));
+    // The store screenshots are the Arabic listing; tests run with an English
+    // device locale, so pin the language.
+    await settings.update(
+      (s) => s.copyWith(themeMode: ThemeMode.light, language: AppLanguage.ar),
+    );
     goals = GoalsProvider(storage);
     await goals.initialize();
     await goals.addGoal(title: 'قراءة 12 كتابًا', target: 12, unit: 'كتاب');

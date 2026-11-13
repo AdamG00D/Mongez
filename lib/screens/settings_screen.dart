@@ -195,31 +195,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
               L10n.isArabic ? 'اللغة · Language' : 'Language · اللغة',
             ),
             Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<AppLanguage>(
-                    showSelectedIcon: false,
-                    segments: <ButtonSegment<AppLanguage>>[
-                      ButtonSegment<AppLanguage>(
-                        value: AppLanguage.system,
-                        icon: const Icon(Icons.phone_android_rounded),
-                        label: Text(l10n.languageSystem),
-                      ),
-                      ButtonSegment<AppLanguage>(
-                        value: AppLanguage.ar,
-                        label: Text(l10n.languageArabic),
-                      ),
-                      ButtonSegment<AppLanguage>(
-                        value: AppLanguage.en,
-                        label: Text(l10n.languageEnglish),
-                      ),
-                    ],
-                    selected: <AppLanguage>{s.language},
-                    onSelectionChanged: (Set<AppLanguage> v) =>
-                        settingsProvider.setLanguage(v.first),
-                  ),
+              child: RadioGroup<AppLanguage>(
+                groupValue: s.language,
+                onChanged: (AppLanguage? language) {
+                  if (language != null) {
+                    settingsProvider.setLanguage(language);
+                  }
+                },
+                child: Column(
+                  children:
+                      <(AppLanguage, String)>[
+                        (AppLanguage.system, l10n.languageSystem),
+                        (AppLanguage.ar, l10n.languageArabic),
+                        (AppLanguage.en, l10n.languageEnglish),
+                      ].map(((AppLanguage, String) option) {
+                        final (language, label) = option;
+                        return RadioListTile<AppLanguage>(
+                          value: language,
+                          dense: true,
+                          title: Text(label, style: textTheme.bodyLarge),
+                        );
+                      }).toList(),
                 ),
               ),
             ),
@@ -240,17 +236,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ButtonSegment<ThemeMode>(
                             value: ThemeMode.light,
                             icon: const Icon(Icons.light_mode_rounded),
-                            label: Text(l10n.themeLight),
+                            label: _SegmentLabel(l10n.themeLight),
                           ),
                           ButtonSegment<ThemeMode>(
                             value: ThemeMode.dark,
                             icon: const Icon(Icons.dark_mode_rounded),
-                            label: Text(l10n.themeDark),
+                            label: _SegmentLabel(l10n.themeDark),
                           ),
                           ButtonSegment<ThemeMode>(
                             value: ThemeMode.system,
                             icon: const Icon(Icons.brightness_auto_rounded),
-                            label: Text(l10n.themeSystem),
+                            label: _SegmentLabel(l10n.themeSystem),
                           ),
                         ],
                         selected: <ThemeMode>{s.themeMode},
@@ -788,6 +784,22 @@ class _BackgroundTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A segmented-button label that scales down to fit instead of wrapping
+/// (English labels are wider than the Arabic ones).
+class _SegmentLabel extends StatelessWidget {
+  const _SegmentLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(text, maxLines: 1, softWrap: false),
     );
   }
 }
