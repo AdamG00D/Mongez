@@ -34,6 +34,9 @@ private class MongezWidgetFactory(
   private val tasks = mutableListOf<WidgetTaskItem>()
   private var dateKey: String = todayDateKey()
 
+  /** App language direction written by Dart: 1 = RTL, 0 = LTR, -1 = unknown. */
+  private var rtl: Int = -1
+
   override fun onCreate() {
     loadTasks()
   }
@@ -55,6 +58,12 @@ private class MongezWidgetFactory(
 
     val task = tasks[position]
     val views = RemoteViews(context.packageName, R.layout.mongez_widget_list_item)
+    if (rtl != -1) {
+      views.setInt(
+          R.id.widget_task_row,
+          "setLayoutDirection",
+          if (rtl == 1) View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR)
+    }
     views.setImageViewResource(
         R.id.widget_task_check,
         if (task.isDone) R.drawable.ic_widget_checked else R.drawable.ic_widget_unchecked,
@@ -121,6 +130,7 @@ private class MongezWidgetFactory(
     tasks.clear()
     val widgetData = HomeWidgetPlugin.getData(context)
     dateKey = widgetData.getString("widget_date_key", todayDateKey()) ?: todayDateKey()
+    rtl = (widgetData.all["widget_rtl"] as? Number)?.toInt() ?: -1
     val rawTasks = widgetData.getString("widget_tasks_json", "[]") ?: "[]"
 
     try {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/l10n.dart';
 import '../models/usage.dart';
 import '../providers/screen_time_provider.dart';
 import '../services/system_service.dart';
@@ -38,7 +39,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text(
-                'حدّ يومي لـ ${app.label}',
+                context.l10n.dailyLimitFor(app.label),
                 style: Theme.of(
                   context,
                 ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
@@ -53,7 +54,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                   return ChoiceChip(
                     label: Text(
                       minutes == 0
-                          ? 'بدون حد'
+                          ? context.l10n.noLimit
                           : formatDurationShort(Duration(minutes: minutes)),
                     ),
                     selected: current == minutes,
@@ -80,10 +81,10 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
 
     Widget body;
     if (!provider.isSupported) {
-      body = const EmptyState(
+      body = EmptyState(
         icon: Icons.phone_android_rounded,
-        title: 'غير مدعوم',
-        message: 'ميزة وقت الشاشة متاحة على أجهزة أندرويد فقط.',
+        title: context.l10n.notSupportedTitle,
+        message: context.l10n.notSupportedMessage,
       );
     } else if (!provider.checked) {
       body = const Padding(
@@ -112,7 +113,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                 children: <Widget>[
                   Expanded(
                     child: Text(
-                      'وقت الشاشة',
+                      context.l10n.navScreenTime,
                       style: textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w900,
                       ),
@@ -120,7 +121,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen> {
                   ),
                   if (provider.hasPermission)
                     IconButton(
-                      tooltip: 'تحديث',
+                      tooltip: context.l10n.refresh,
                       onPressed: provider.loading ? null : provider.refresh,
                       icon: const Icon(Icons.refresh_rounded),
                     ),
@@ -157,18 +158,18 @@ class _PermissionCardState extends State<_PermissionCard> {
       context: context,
       builder: (BuildContext context) => AlertDialog(
         icon: const Icon(Icons.privacy_tip_rounded),
-        title: const Text('الوصول إلى بيانات الاستخدام'),
+        title: Text(context.l10n.usageAccessTitle),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Text(usageAccessDisclosure),
+              Text(context.l10n.usageAccessDisclosure),
               Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: TextButton(
                   onPressed: () => PrivacyPolicyScreen.open(context),
-                  child: const Text('سياسة الخصوصية'),
+                  child: Text(context.l10n.privacyPolicy),
                 ),
               ),
             ],
@@ -177,11 +178,11 @@ class _PermissionCardState extends State<_PermissionCard> {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('لا، شكرًا'),
+            child: Text(context.l10n.noThanks),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('موافق، متابعة'),
+            child: Text(context.l10n.agreeContinue),
           ),
         ],
       ),
@@ -216,11 +217,10 @@ class _PermissionCardState extends State<_PermissionCard> {
 
     return Column(
       children: <Widget>[
-        const EmptyState(
+        EmptyState(
           icon: Icons.hourglass_bottom_rounded,
-          title: 'اعرف أين يذهب وقتك',
-          message:
-              'شاهد عدد ساعات فتح الشاشة، ومرات فتح القفل، والوقت في كل تطبيق.',
+          title: context.l10n.screenTimeIntroTitle,
+          message: context.l10n.screenTimeIntroMessage,
         ),
         Card(
           child: Padding(
@@ -228,22 +228,16 @@ class _PermissionCardState extends State<_PermissionCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                point(
-                  Icons.timer_rounded,
-                  'إجمالي وقت الشاشة يوميًا وأسبوعيًا',
-                ),
-                point(Icons.apps_rounded, 'ترتيب التطبيقات حسب الاستخدام'),
+                point(Icons.timer_rounded, context.l10n.screenTimePoint1),
+                point(Icons.apps_rounded, context.l10n.screenTimePoint2),
                 point(
                   Icons.track_changes_rounded,
-                  'تتبع تطبيقات معيّنة بحد يومي',
+                  context.l10n.screenTimePoint3,
                 ),
-                point(
-                  Icons.lock_rounded,
-                  'البيانات تبقى على جهازك ولا تُرسل لأي مكان',
-                ),
+                point(Icons.lock_rounded, context.l10n.screenTimePoint4),
                 const SizedBox(height: 6),
                 Text(
-                  'اضغط الزر ثم فعّل "مُنجز" في قائمة "الوصول إلى بيانات الاستخدام"، ثم ارجع للتطبيق.',
+                  context.l10n.screenTimeGrantHint,
                   style: textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
@@ -254,7 +248,7 @@ class _PermissionCardState extends State<_PermissionCard> {
                   child: FilledButton.icon(
                     onPressed: _grant,
                     icon: const Icon(Icons.verified_user_rounded),
-                    label: const Text('منح صلاحية الوصول للاستخدام'),
+                    label: Text(context.l10n.grantUsageAccess),
                   ),
                 ),
               ],
@@ -321,30 +315,24 @@ class _RestrictedSettingHelp extends StatelessWidget {
         child: ExpansionTile(
           initiallyExpanded: initiallyExpanded,
           leading: Icon(Icons.help_outline_rounded, color: scheme.primary),
-          title: const Text('زر السماح رمادي ولا يعمل؟'),
-          subtitle: const Text('يظهر تحته "Controlled by restricted setting"'),
+          title: Text(context.l10n.restrictedTitle),
+          subtitle: Text(context.l10n.restrictedSubtitle),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           expandedCrossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'أندرويد يقفل هذه الصلاحية للتطبيقات المثبّتة من ملف APK. افتحها مرة واحدة هكذا:',
+              context.l10n.restrictedIntro,
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 12),
-            step(
-              1,
-              'اضغط زر السماح الرمادي مرة واحدة حتى تظهر رسالة المنع، ثم أغلقها.',
-            ),
-            step(2, 'اضغط "فتح معلومات التطبيق" بالأسفل.'),
-            step(
-              3,
-              'اضغط النقاط الثلاث ⋮ أعلى الصفحة ثم "السماح بالإعدادات المقيّدة" (Allow restricted settings) وأكّد ببصمتك أو رمز القفل.',
-            ),
-            step(4, 'ارجع إلى هنا واضغط "منح صلاحية الوصول للاستخدام".'),
+            step(1, context.l10n.restrictedStep1),
+            step(2, context.l10n.restrictedStep2),
+            step(3, context.l10n.restrictedStep3),
+            step(4, context.l10n.restrictedStep4),
             Text(
-              'لا تظهر النقاط الثلاث إلا بعد الخطوة الأولى.',
+              context.l10n.restrictedNote,
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -355,7 +343,7 @@ class _RestrictedSettingHelp extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: SystemService.openAppInfo,
                 icon: const Icon(Icons.info_outline_rounded),
-                label: const Text('فتح معلومات التطبيق'),
+                label: Text(context.l10n.openAppInfo),
               ),
             ),
           ],
@@ -397,10 +385,10 @@ class _UsageContent extends StatelessWidget {
                 child: ChoiceChip(
                   label: Text(
                     i == 0
-                        ? 'اليوم'
+                        ? context.l10n.today
                         : i == 1
-                        ? 'أمس'
-                        : arabicWeekDayNames[day.weekday]!,
+                        ? context.l10n.yesterday
+                        : weekDayName(day.weekday),
                   ),
                   selected: isSameDate(day, selected),
                   onSelected: (_) => provider.selectDay(day),
@@ -415,7 +403,7 @@ class _UsageContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                'وقت فتح الشاشة',
+                context.l10n.screenOnTime,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.9),
                   fontWeight: FontWeight.w700,
@@ -441,11 +429,11 @@ class _UsageContent extends StatelessWidget {
                 children: <Widget>[
                   _HeroPill(
                     icon: Icons.lock_open_rounded,
-                    text: '${summary?.unlocks ?? 0} مرة فتح قفل',
+                    text: context.l10n.unlocksCount(summary?.unlocks ?? 0),
                   ),
                   _HeroPill(
                     icon: Icons.apps_rounded,
-                    text: '${apps.length} تطبيق',
+                    text: context.l10n.appsCount(apps.length),
                   ),
                   if (average > Duration.zero)
                     _HeroPill(
@@ -453,8 +441,12 @@ class _UsageContent extends StatelessWidget {
                           ? Icons.trending_down_rounded
                           : Icons.trending_up_rounded,
                       text: diff.isNegative
-                          ? 'أقل من متوسطك بـ ${formatDurationShort(-diff)}'
-                          : 'أعلى من متوسطك بـ ${formatDurationShort(diff)}',
+                          ? context.l10n.belowAverage(
+                              formatDurationShort(-diff),
+                            )
+                          : context.l10n.aboveAverage(
+                              formatDurationShort(diff),
+                            ),
                     ),
                 ],
               ),
@@ -463,9 +455,9 @@ class _UsageContent extends StatelessWidget {
         ),
         if (provider.week.length == 7) ...<Widget>[
           SectionTitle(
-            'آخر 7 أيام',
+            context.l10n.last7Days,
             trailing: Text(
-              'المتوسط ${formatDurationShort(average)}',
+              context.l10n.averageLabel(formatDurationShort(average)),
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
@@ -481,17 +473,19 @@ class _UsageContent extends StatelessWidget {
                     .toList(),
                 labels: List<String>.generate(
                   7,
-                  (int i) => arabicWeekDayNames[addDays(today, i - 6).weekday]!,
+                  (int i) =>
+                      weekDayName(addDays(today, i - 6).weekday, short: true),
                 ),
                 highlightIndex: 6 - daysBetween(selected, today),
-                valueLabel: (double h) =>
-                    h < 1 ? '${(h * 60).round()}د' : '${h.toStringAsFixed(1)}س',
+                valueLabel: (double h) => h < 1
+                    ? context.l10n.durationMinutesCompact((h * 60).round())
+                    : context.l10n.durationHoursCompact(h.toStringAsFixed(1)),
               ),
             ),
           ),
         ],
         if (provider.tracked.isNotEmpty) ...<Widget>[
-          const SectionTitle('تطبيقات أتابعها'),
+          SectionTitle(context.l10n.trackedApps),
           ...provider.trackedUsage.map((AppUsage app) {
             final limit = provider.limitFor(app.packageName);
             final ratio = limit == 0 ? 0.0 : app.foreground.inMinutes / limit;
@@ -507,12 +501,22 @@ class _UsageContent extends StatelessWidget {
                   leading: _AppIcon(app: app),
                   title: Text(app.label),
                   subtitle: limit == 0
-                      ? Text('${formatDurationShort(app.foreground)} اليوم')
+                      ? Text(
+                          context.l10n.durationToday(
+                            formatDurationShort(app.foreground),
+                          ),
+                        )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              '${formatDurationShort(app.foreground)} من ${formatDurationShort(Duration(minutes: limit))}${over ? ' — تجاوزت الحد!' : ''}',
+                              context.l10n.usageOfLimit(
+                                    formatDurationShort(app.foreground),
+                                    formatDurationShort(
+                                      Duration(minutes: limit),
+                                    ),
+                                  ) +
+                                  (over ? context.l10n.overLimit : ''),
                               style: TextStyle(
                                 color: over ? scheme.error : null,
                                 fontWeight: over ? FontWeight.w800 : null,
@@ -541,14 +545,14 @@ class _UsageContent extends StatelessWidget {
                         provider.untrack(app.packageName);
                       }
                     },
-                    itemBuilder: (_) => const <PopupMenuEntry<String>>[
+                    itemBuilder: (_) => <PopupMenuEntry<String>>[
                       PopupMenuItem<String>(
                         value: 'limit',
-                        child: Text('تعديل الحد اليومي'),
+                        child: Text(context.l10n.editDailyLimit),
                       ),
                       PopupMenuItem<String>(
                         value: 'remove',
-                        child: Text('إلغاء المتابعة'),
+                        child: Text(context.l10n.stopTracking),
                       ),
                     ],
                   ),
@@ -558,9 +562,9 @@ class _UsageContent extends StatelessWidget {
           }),
         ],
         SectionTitle(
-          'التطبيقات الأكثر استخدامًا',
+          context.l10n.mostUsedApps,
           trailing: Text(
-            'اضغط لمتابعة تطبيق',
+            context.l10n.tapToTrack,
             style: textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),
@@ -572,8 +576,8 @@ class _UsageContent extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               child: Text(
                 provider.loading
-                    ? 'جارٍ التحميل...'
-                    : 'لا توجد بيانات لهذا اليوم.',
+                    ? context.l10n.loading
+                    : context.l10n.noDataForDay,
                 textAlign: TextAlign.center,
               ),
             ),

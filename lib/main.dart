@@ -28,7 +28,7 @@ Future<void> homeWidgetBackgroundCallback(Uri? uri) async {
   WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
   try {
-    await initializeDateFormatting('ar');
+    await initializeDateFormatting();
   } catch (_) {}
   if (uri == null) {
     return;
@@ -41,7 +41,7 @@ Future<void> homeWidgetBackgroundCallback(Uri? uri) async {
   }
 }
 
-/// Runs when the "تم الإنجاز ✓" action is pressed while the app isn't open.
+/// Runs when the "Done ✓" action is pressed while the app isn't open.
 @pragma('vm:entry-point')
 Future<void> notificationBackgroundHandler(
   NotificationResponse response,
@@ -49,7 +49,7 @@ Future<void> notificationBackgroundHandler(
   WidgetsFlutterBinding.ensureInitialized();
   DartPluginRegistrant.ensureInitialized();
   try {
-    await initializeDateFormatting('ar');
+    await initializeDateFormatting();
   } catch (_) {}
   await handleTaskNotificationAction(response, inBackground: true);
 }
@@ -87,7 +87,7 @@ Future<bool> handleTaskNotificationAction(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('ar');
+  await initializeDateFormatting();
   await SystemChrome.setPreferredOrientations(const <DeviceOrientation>[
     DeviceOrientation.portraitUp,
   ]);
@@ -122,6 +122,10 @@ Future<void> main() async {
   goalsProvider.onDataChanged = reminders.schedule;
   settingsProvider.onRemindersChanged = reminders.schedule;
   settingsProvider.onWeekStartChanged = taskProvider.onWeekStartChanged;
+  settingsProvider.onLanguageChanged = () {
+    taskProvider.refreshWidget();
+    reminders.schedule();
+  };
 
   // Background isolates (widget taps, notification actions) ping this port so
   // the open UI reloads immediately.

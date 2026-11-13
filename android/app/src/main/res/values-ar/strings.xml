@@ -5,4 +5,11 @@
     <string name="widget_list_description">مهام اليوم مع الإنجاز بلمسة واحدة</string>
     <string name="widget_summary_label">مُنجز · الملخّص</string>
     <string name="widget_summary_description">نسبة إنجاز اليوم والمهمة التالية</string>
+    <string name="widget_title">مهام اليوم</string>
+    <string name="widget_next">التالي</string>
+    <string name="widget_empty">لا مهام لليوم — اضغط + لإضافة مهمة</string>
+    <string name="widget_add">إضافة مهمة</string>
+    <string name="widget_open_app">افتح مُنجز</string>
+    <string name="widget_no_tasks_today">لا مهام اليوم</string>
+    <string name="widget_done_of">أنجزت %1$d من %2$d</string>
 </resources>

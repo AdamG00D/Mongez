@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
-import 'package:intl/intl.dart';
 
+import '../l10n/l10n.dart';
 import '../models/task.dart';
 import '../models/task_type.dart';
 import '../utils/date_helpers.dart';
@@ -36,17 +36,28 @@ class WidgetSyncService {
       }
     }
 
+    final l10n = L10n.current;
     final data = <String, Object?>{
-      'widget_title': 'مهام اليوم',
-      'widget_subtitle': _formatWidgetDate(today),
+      // Texts are written in the app language so the widget follows it even
+      // when it differs from the device language.
+      'widget_rtl': L10n.isArabic ? 1 : 0,
+      'widget_title': l10n.widgetTitle,
+      'widget_subtitle': formatWeekdayDayMonth(today),
       'widget_date_key': dateKey(today),
       'widget_done_count': done,
       'widget_total_count': total,
       'widget_progress': progress,
-      'widget_counter': total == 0 ? 'لا مهام' : '$done/$total',
+      'widget_counter': total == 0 ? l10n.widgetNoTasks : '$done/$total',
+      'widget_summary_counter': total == 0
+          ? l10n.widgetNoTasksToday
+          : l10n.widgetDoneOf(done, total),
+      'widget_next_label': l10n.widgetNext,
+      'widget_empty_text': l10n.widgetEmptyList,
+      'widget_add_label': l10n.widgetAddTask,
       'widget_message': progressMessage(done, total),
       'widget_next_title':
-          next?.title ?? (total == 0 ? 'يومك فارغ' : 'أنجزت كل شيء 🎉'),
+          next?.title ??
+          (total == 0 ? l10n.widgetEmptyDay : l10n.widgetAllDone),
       'widget_next_time': next?.timeInMinutes == null
           ? ''
           : formatMinutesOfDay(next!.timeInMinutes!),
@@ -79,14 +90,6 @@ class WidgetSyncService {
 
     await HomeWidget.updateWidget(androidName: listProviderName);
     await HomeWidget.updateWidget(androidName: summaryProviderName);
-  }
-
-  String _formatWidgetDate(DateTime date) {
-    try {
-      return DateFormat('EEEE، d MMMM', 'ar').format(date);
-    } catch (_) {
-      return DateFormat('yyyy/MM/dd').format(date);
-    }
   }
 
   Future<bool> requestPinWidget({bool summary = false}) async {

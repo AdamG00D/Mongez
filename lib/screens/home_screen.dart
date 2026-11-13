@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/l10n.dart';
 import '../app_navigation.dart';
 import '../models/task.dart';
 import '../providers/settings_provider.dart';
@@ -129,7 +130,6 @@ class _HomeScreenState extends State<HomeScreen> {
       initialDate: provider.selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      locale: const Locale('ar'),
     );
     if (selected != null) {
       provider.setSelectedDate(selected);
@@ -168,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
       HapticFeedback.mediumImpact();
       SystemService.playCelebrate();
       showCelebration(context);
-      _snack('أنجزت كل مهام اليوم! 🎉 استمر هكذا');
+      _snack(context.l10n.allDoneSnack);
     } else {
       SystemService.playDone();
     }
@@ -182,10 +182,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     _snack(
       hadHistory
-          ? 'تم حذف المهمة (إنجازاتها السابقة باقية في السجل)'
-          : 'تم حذف المهمة',
+          ? context.l10n.taskDeletedKeepHistory
+          : context.l10n.taskDeleted,
       action: SnackBarAction(
-        label: 'تراجع',
+        label: context.l10n.undo,
         onPressed: () => provider.restoreTask(removed),
       ),
     );
@@ -196,14 +196,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-        title: const Text('حذف المهمة وسجلها؟'),
+        title: Text(context.l10n.deleteTaskAndHistoryTitle),
         content: Text(
-          'سيتم حذف "${task.title}" ومعها $count ${count == 1 ? 'إنجاز' : 'إنجازات'} من السجل والعدّادات.',
+          context.l10n.deleteTaskAndHistoryMessage(task.title, count),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -211,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
               foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -225,9 +225,9 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     _snack(
-      'تم حذف المهمة وسجلها',
+      context.l10n.taskAndHistoryDeleted,
       action: SnackBarAction(
-        label: 'تراجع',
+        label: context.l10n.undo,
         onPressed: () async {
           if (removed != null) {
             await provider.restoreTask(removed);
@@ -266,7 +266,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 leading: Icon(
                   isDone ? Icons.undo_rounded : Icons.check_circle_rounded,
                 ),
-                title: Text(isDone ? 'إلغاء الإنجاز' : 'تم الإنجاز'),
+                title: Text(
+                  isDone ? context.l10n.markNotDone : context.l10n.markDone,
+                ),
                 onTap: () {
                   close();
                   _toggle(provider, task, !isDone);
@@ -274,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.edit_rounded),
-                title: const Text('تعديل'),
+                title: Text(context.l10n.edit),
                 onTap: () {
                   close();
                   _openAddSheet(task: task);
@@ -283,20 +285,20 @@ class _HomeScreenState extends State<HomeScreen> {
               if (task.isNormal && !isDone)
                 ListTile(
                   leading: const Icon(Icons.next_plan_rounded),
-                  title: const Text('تأجيل لليوم التالي'),
+                  title: Text(context.l10n.postponeToNextDay),
                   onTap: () {
                     close();
                     provider.postponeTask(task.id);
-                    _snack('تم تأجيل المهمة يومًا');
+                    _snack(context.l10n.postponedSnack);
                   },
                 ),
               ListTile(
                 leading: const Icon(Icons.copy_rounded),
-                title: const Text('نسخ إلى الغد'),
+                title: Text(context.l10n.copyToTomorrow),
                 onTap: () {
                   close();
                   provider.duplicateTaskTo(task.id, addDays(day, 1));
-                  _snack('تمت إضافة نسخة لليوم التالي');
+                  _snack(context.l10n.copiedSnack);
                 },
               ),
               ListTile(
@@ -305,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: Theme.of(sheetContext).colorScheme.error,
                 ),
                 title: Text(
-                  'حذف المهمة',
+                  context.l10n.deleteTask,
                   style: TextStyle(
                     color: Theme.of(sheetContext).colorScheme.error,
                   ),
@@ -322,13 +324,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Theme.of(sheetContext).colorScheme.error,
                   ),
                   title: Text(
-                    'حذف المهمة وسجلها',
+                    context.l10n.deleteTaskAndHistory,
                     style: TextStyle(
                       color: Theme.of(sheetContext).colorScheme.error,
                     ),
                   ),
                   subtitle: Text(
-                    'يحذف أيضًا ${provider.historyCountForTask(task.id)} إنجاز من السجل',
+                    context.l10n.deletesCompletionsToo(
+                      provider.historyCountForTask(task.id),
+                    ),
                   ),
                   onTap: () {
                     close();
@@ -349,12 +353,12 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'time':
         await provider.sortSelectedDayByTime();
         if (mounted) {
-          _snack('تم ترتيب المهام حسب الوقت');
+          _snack(context.l10n.sortedByTime);
         }
       case 'priority':
         await provider.sortSelectedDayByPriority();
         if (mounted) {
-          _snack('تم ترتيب المهام حسب الأولوية');
+          _snack(context.l10n.sortedByPriority);
         }
       case 'hide':
         await settings.update(
@@ -367,8 +371,11 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted) {
           _snack(
             moved == 0
-                ? 'لا توجد مهام لمرة واحدة غير منجزة لنقلها. المهام اليومية والأسبوعية تتكرر تلقائيًا.'
-                : 'تم نقل $moved ${moved == 1 ? 'مهمة' : 'مهام'} إلى ${relativeDateLabel(target)}',
+                ? context.l10n.nothingToCarry
+                : context.l10n.movedTasks(
+                    moved,
+                    carryTargetLabel(context.l10n, target),
+                  ),
           );
         }
     }
@@ -394,9 +401,9 @@ class _HomeScreenState extends State<HomeScreen> {
         heroTag: 'add-task',
         onPressed: () => _openAddSheet(),
         icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'مهمة جديدة',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        label: Text(
+          context.l10n.newTask,
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
       body: provider.isLoading
@@ -446,11 +453,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         SectionTitle(
                           visibleTasks.isEmpty
-                              ? 'المهام'
-                              : 'المهام (${visibleTasks.length})',
+                              ? context.l10n.navTasks
+                              : context.l10n.tasksHeaderCount(
+                                  visibleTasks.length,
+                                ),
                           trailing: visibleTasks.length > 1
                               ? Text(
-                                  'اضغط مطولًا للسحب',
+                                  context.l10n.longPressToDrag,
                                   style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
                                         color: Theme.of(
@@ -470,11 +479,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? Icons.wb_twilight_rounded
                             : Icons.celebration_rounded,
                         title: allTasks.isEmpty
-                            ? 'لا توجد مهام لهذا اليوم'
-                            : 'أنجزت كل شيء!',
+                            ? context.l10n.noTasksForDay
+                            : context.l10n.allDoneTitle,
                         message: allTasks.isEmpty
-                            ? 'ابدأ بأهم 3 مهام. القائمة القصيرة تُنجز.'
-                            : 'المهام المكتملة مخفية. يمكنك إظهارها من القائمة.',
+                            ? context.l10n.noTasksMessage
+                            : context.l10n.completedHiddenMessage,
                       ),
                     )
                   else
@@ -553,6 +562,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+/// Where "move unfinished" sends tasks, phrased to follow "to"
+/// ("tomorrow" / "الغد", "Friday" / "يوم الجمعة").
+String carryTargetLabel(AppLocalizations l10n, DateTime target) {
+  final today = todayDate();
+  if (isSameDate(target, addDays(today, 1))) {
+    return l10n.carryToTomorrow;
+  }
+  if (isSameDate(target, today)) {
+    return l10n.carryToToday;
+  }
+  if (isSameDate(target, addDays(today, 2))) {
+    return l10n.carryToDayAfter;
+  }
+  return l10n.carryToWeekday(weekDayName(target.weekday));
+}
+
 class _Header extends StatelessWidget {
   const _Header({
     required this.onMenu,
@@ -574,24 +599,12 @@ class _Header extends StatelessWidget {
   final int carryCount;
   final DateTime carryTarget;
 
-  static String _tasksCount(int count) {
-    return switch (count) {
-      1 => 'مهمة واحدة',
-      2 => 'مهمتان',
-      <= 10 => '$count مهام',
-      _ => '$count مهمة',
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final carryTo = switch (relativeDateLabel(carryTarget)) {
-      'غدًا' => 'الغد',
-      final String label when label == 'اليوم' || label == 'بعد غد' => label,
-      final String weekday => 'يوم $weekday',
-    };
+    final l10n = context.l10n;
+    final carryTo = carryTargetLabel(l10n, carryTarget);
     return Row(
       children: <Widget>[
         const MongezLogo(size: 42),
@@ -602,7 +615,7 @@ class _Header extends StatelessWidget {
             children: <Widget>[
               const _Greeting(),
               Text(
-                'مُنجز',
+                l10n.appName,
                 style: textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w900,
                   height: 1.1,
@@ -612,7 +625,7 @@ class _Header extends StatelessWidget {
           ),
         ),
         PopupMenuButton<String>(
-          tooltip: 'خيارات',
+          tooltip: l10n.options,
           icon: const Icon(Icons.more_vert_rounded),
           onSelected: onMenu,
           position: PopupMenuPosition.under,
@@ -626,19 +639,19 @@ class _Header extends StatelessWidget {
           constraints: const BoxConstraints(minWidth: 240, maxWidth: 300),
           menuPadding: const EdgeInsets.symmetric(vertical: 6),
           itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-            const _MenuLabel('ترتيب مهام اليوم'),
+            _MenuLabel(l10n.sortTodayTasks),
             _menuItem(
               context,
               value: 'time',
               icon: Icons.schedule_rounded,
-              title: 'حسب الوقت',
+              title: l10n.byTime,
               enabled: taskCount > 1,
             ),
             _menuItem(
               context,
               value: 'priority',
               icon: Icons.local_fire_department_rounded,
-              title: 'حسب الأولوية',
+              title: l10n.byPriority,
               enabled: taskCount > 1,
             ),
             const PopupMenuDivider(height: 10),
@@ -648,19 +661,19 @@ class _Header extends StatelessWidget {
               icon: hideCompleted
                   ? Icons.visibility_rounded
                   : Icons.visibility_off_rounded,
-              title: hideCompleted ? 'إظهار المكتملة' : 'إخفاء المكتملة',
+              title: hideCompleted ? l10n.showCompleted : l10n.hideCompleted,
               subtitle: hideCompleted && doneCount > 0
-                  ? '${_tasksCount(doneCount)} مخفية الآن'
+                  ? l10n.hiddenNow(l10n.tasksCount(doneCount))
                   : null,
             ),
             _menuItem(
               context,
               value: 'carry',
               icon: Icons.redo_rounded,
-              title: 'نقل غير المنجز إلى $carryTo',
+              title: l10n.moveUnfinishedTo(carryTo),
               subtitle: carryCount > 0
-                  ? '${_tasksCount(carryCount)} لمرة واحدة'
-                  : 'لا توجد مهام لمرة واحدة غير منجزة',
+                  ? l10n.oneTimeCount(l10n.tasksCount(carryCount))
+                  : l10n.noUnfinishedOneTime,
               enabled: carryCount > 0,
             ),
           ],
@@ -982,13 +995,13 @@ class _SwipeableTask extends StatelessWidget {
       background: background(
         const Color(0xFF10B981),
         isDone ? Icons.undo_rounded : Icons.check_rounded,
-        isDone ? 'إلغاء' : 'تم',
+        isDone ? context.l10n.swipeUndo : context.l10n.swipeDone,
         true,
       ),
       secondaryBackground: background(
         scheme.error,
         Icons.delete_outline_rounded,
-        'حذف',
+        context.l10n.delete,
         false,
       ),
       confirmDismiss: (DismissDirection direction) async {

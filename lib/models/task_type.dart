@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
+
 enum TaskType { normal, daily, weekly }
 
 extension TaskTypePresentation on TaskType {
@@ -13,9 +15,9 @@ extension TaskTypePresentation on TaskType {
 
   String get label {
     return switch (this) {
-      TaskType.normal => 'عادية',
-      TaskType.daily => 'يومية',
-      TaskType.weekly => 'أسبوعية',
+      TaskType.normal => L10n.current.typeNormal,
+      TaskType.daily => L10n.current.typeDaily,
+      TaskType.weekly => L10n.current.typeWeekly,
     };
   }
 
@@ -41,9 +43,9 @@ enum TaskPriority { none, medium, high }
 extension TaskPriorityPresentation on TaskPriority {
   String get label {
     return switch (this) {
-      TaskPriority.none => 'عادية',
-      TaskPriority.medium => 'مهمة',
-      TaskPriority.high => 'عاجلة',
+      TaskPriority.none => L10n.current.priorityNone,
+      TaskPriority.medium => L10n.current.priorityMedium,
+      TaskPriority.high => L10n.current.priorityHigh,
     };
   }
 
@@ -80,9 +82,10 @@ extension WeeklyReminderModePresentation on WeeklyReminderMode {
 
   String get label {
     return switch (this) {
-      WeeklyReminderMode.onDays => 'في الأيام المحددة',
-      WeeklyReminderMode.everyDayUntilDone => 'كل يوم حتى أنجزها',
-      WeeklyReminderMode.lastDay => 'آخر يوم في الأسبوع',
+      WeeklyReminderMode.onDays => L10n.current.weeklyReminderOnDays,
+      WeeklyReminderMode.everyDayUntilDone =>
+        L10n.current.weeklyReminderEveryDay,
+      WeeklyReminderMode.lastDay => L10n.current.weeklyReminderLastDay,
     };
   }
 }

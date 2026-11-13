@@ -1,6 +1,6 @@
-Mongez (مُنجز) is a simple Arabic, right-to-left planner: write your tasks, follow your yearly goals, and see where your phone time goes. It works fully offline. Free, open source, no ads, no account.
+Mongez (مُنجز) is a simple planner in Arabic and English: write your tasks, follow your yearly goals, and see where your phone time goes. It works fully offline. Free, open source, no ads, no account.
 
-Note: the app's interface is in Arabic.
+The app follows your phone's language (Arabic or English), and you can switch it in Settings.
 
 TASKS
 • One-off, daily and weekly tasks with priority, notes and a reminder time

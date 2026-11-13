@@ -1,61 +1,67 @@
-const List<String> motivationalQuotes = <String>[
-  'الخطوات الصغيرة المتكررة تصنع نتائج كبيرة.',
-  'لا تنتظر الحماس، ابدأ وسيأتي الحماس.',
-  'أنت لا تحتاج أن تكون عظيمًا لتبدأ، لكنك تحتاج أن تبدأ لتكون عظيمًا.',
-  'الانضباط هو أن تتذكر ما تريده حقًا.',
-  'كل يوم فرصة جديدة لتقترب من هدفك خطوة.',
-  'ما تفعله كل يوم أهم مما تفعله مرة واحدة.',
-  'التقدّم البطيء أفضل من عدم التقدّم.',
-  'ركّز على التحسّن بنسبة 1% كل يوم.',
-  'النجاح مجموع جهود صغيرة تتكرر يومًا بعد يوم.',
-  'لا تقارن بدايتك بنهاية غيرك.',
-  'اجعل هدفك أكبر من أعذارك.',
-  'العادة الجيدة تبدأ بقرار، وتستمر بتكرار.',
-  'قليل دائم خير من كثير منقطع.',
-  'خطّط ليومك قبل أن يخطّط لك.',
-  'افعل اليوم ما سيشكرك عليه نفسك غدًا.',
-  'الوقت الذي تستمتع بإضاعته ليس وقتًا ضائعًا، لكن الذي تندم عليه هو كذلك.',
-  'أصعب خطوة هي الأولى، وأنت قادر عليها.',
-  'لا يهم كم أنت بطيء، ما دمت لا تتوقف.',
-];
+import '../l10n/l10n.dart';
+
+/// Short motivational quotes in the current language.
+List<String> get motivationalQuotes {
+  final l = L10n.current;
+  return <String>[
+    l.quote01,
+    l.quote02,
+    l.quote03,
+    l.quote04,
+    l.quote05,
+    l.quote06,
+    l.quote07,
+    l.quote08,
+    l.quote09,
+    l.quote10,
+    l.quote11,
+    l.quote12,
+    l.quote13,
+    l.quote14,
+    l.quote15,
+    l.quote16,
+    l.quote17,
+    l.quote18,
+  ];
+}
 
 /// Short encouragement after completing tasks, keyed by completion ratio.
 String progressMessage(int done, int total) {
   if (total == 0) {
-    return 'يوم فارغ؟ أضف أهم مهمة واحدة وابدأ بها.';
+    return L10n.current.progressEmpty;
   }
   if (done == 0) {
-    return 'ابدأ بأسهل مهمة، والباقي سيتبعها.';
+    return L10n.current.progressNone;
   }
   if (done == total) {
-    return 'أنجزت كل شيء! يوم رائع 🎉';
+    return L10n.current.progressAll;
   }
   final ratio = done / total;
   if (ratio < 0.34) {
-    return 'بداية جميلة، استمر!';
+    return L10n.current.progressStarted;
   }
   if (ratio < 0.67) {
-    return 'أنت في منتصف الطريق 💪';
+    return L10n.current.progressHalf;
   }
-  return 'اقتربت جدًا، مهمة أو اثنتان وتنتهي!';
+  return L10n.current.progressAlmost;
 }
 
 String quoteOfTheDay([DateTime? date]) {
   final day = date ?? DateTime.now();
-  final index =
-      (day.year * 372 + day.month * 31 + day.day) % motivationalQuotes.length;
-  return motivationalQuotes[index];
+  final quotes = motivationalQuotes;
+  final index = (day.year * 372 + day.month * 31 + day.day) % quotes.length;
+  return quotes[index];
 }
 
 String yearProgressMessage(double yearRatio, double goalsRatio) {
   if (goalsRatio >= 1) {
-    return 'أنجزت أهداف السنة كلها. وقت أحلام أكبر!';
+    return L10n.current.yearAllDone;
   }
   if (goalsRatio + 0.05 >= yearRatio) {
-    return 'أنت متقدّم على الجدول الزمني، أحسنت!';
+    return L10n.current.yearAhead;
   }
   if (goalsRatio + 0.2 >= yearRatio) {
-    return 'قريب من المسار، دفعة صغيرة هذا الأسبوع.';
+    return L10n.current.yearClose;
   }
-  return 'ما زال هناك وقت. اختر هدفًا واحدًا واعمل عليه اليوم.';
+  return L10n.current.yearBehind;
 }

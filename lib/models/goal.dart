@@ -46,7 +46,7 @@ class Goal {
   final int? target;
   final int progress;
 
-  /// Unit label for numeric goals (e.g. "كتاب").
+  /// Unit label for numeric goals (e.g. "books").
   final String? unit;
   final DateTime? completedAt;
   final DateTime createdAt;

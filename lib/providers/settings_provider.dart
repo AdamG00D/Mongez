@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../l10n/l10n.dart';
 import '../models/app_settings.dart';
 import '../services/local_storage_service.dart';
 import '../utils/date_helpers.dart';
@@ -22,6 +23,10 @@ class SettingsProvider extends ChangeNotifier {
   /// Called when the week start changes (widget/progress must refresh).
   VoidCallback? onWeekStartChanged;
 
+  /// Called when the shown language changes (widget and reminder texts must
+  /// be rebuilt).
+  VoidCallback? onLanguageChanged;
+
   AppSettings get settings => _settings;
   bool get isLoaded => _loaded;
   ThemeMode get themeMode => _settings.themeMode;
@@ -36,6 +41,7 @@ class SettingsProvider extends ChangeNotifier {
         clearCustomBackground: true,
       );
     }
+    L10n.apply(_settings.language);
     _loaded = true;
     notifyListeners();
   }
@@ -45,11 +51,16 @@ class SettingsProvider extends ChangeNotifier {
     final next = change(previous);
     _settings = next;
     WeekSettings.defaultStartDay = next.weekStartDay;
+    final languageChanged =
+        previous.language != next.language && L10n.apply(next.language);
     notifyListeners();
     await _storage.saveSettings(next);
 
     if (previous.weekStartDay != next.weekStartDay) {
       onWeekStartChanged?.call();
+    }
+    if (languageChanged) {
+      onLanguageChanged?.call();
     }
     if (previous.followUpReminders != next.followUpReminders ||
         previous.followUpMinutes != next.followUpMinutes ||
@@ -63,6 +74,20 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setThemeMode(ThemeMode mode) =>
       update((AppSettings s) => s.copyWith(themeMode: mode));
+
+  Future<void> setLanguage(AppLanguage language) =>
+      update((AppSettings s) => s.copyWith(language: language));
+
+  /// Re-reads the device languages (when following the system). Returns true
+  /// if the shown language changed; listeners are notified in that case.
+  bool refreshDeviceLanguage() {
+    if (_settings.language != AppLanguage.system || !L10n.refreshFromDevice()) {
+      return false;
+    }
+    notifyListeners();
+    onLanguageChanged?.call();
+    return true;
+  }
 
   /// Lets the user pick a photo and stores a private copy as the background.
   /// Returns false if the user cancelled.

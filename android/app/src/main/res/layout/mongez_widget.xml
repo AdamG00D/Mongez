@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
-    android:layoutDirection="rtl"
+    android:layoutDirection="locale"
     android:orientation="vertical"
     android:padding="12dp">
 
@@ -34,9 +34,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:maxLines="1"
-                android:text="مهام اليوم"
+                android:text="@string/widget_title"
                 android:textColor="@color/widget_text"
-                android:textDirection="rtl"
+                android:textAlignment="viewStart"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -48,7 +48,7 @@
                 android:maxLines="1"
                 android:text=""
                 android:textColor="@color/widget_muted"
-                android:textDirection="rtl"
+                android:textAlignment="viewStart"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -72,7 +72,7 @@
             android:layout_width="34dp"
             android:layout_height="34dp"
             android:background="@drawable/widget_add_bg"
-            android:contentDescription="إضافة مهمة">
+            android:contentDescription="@string/widget_add">
 
             <ImageView
                 android:layout_width="20dp"
@@ -112,9 +112,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:text="لا مهام لليوم — اضغط + لإضافة مهمة"
+            android:text="@string/widget_empty"
             android:textColor="@color/widget_muted"
-            android:textDirection="rtl"
             android:textSize="14sp"
             android:textStyle="bold"
             android:visibility="gone" />

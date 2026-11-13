@@ -8,6 +8,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../l10n/l10n.dart';
 import '../models/app_settings.dart';
 import '../models/goal.dart';
 import '../models/task.dart';
@@ -17,7 +18,7 @@ import '../utils/motivation.dart';
 import 'local_storage_service.dart';
 
 /// Handles notification action taps while the app process is not in the
-/// foreground (e.g. the "تم ✓" button on a task reminder).
+/// foreground (e.g. the "Done ✓" button on a task reminder).
 typedef BackgroundNotificationHandler =
     void Function(NotificationResponse response);
 
@@ -27,34 +28,39 @@ class NotificationService {
 
   static const String actionDone = 'done';
 
-  static const AndroidNotificationChannel _taskChannel =
+  // Channel names are shown in the system settings, so they follow the app
+  // language. Re-creating a channel with the same id only renames it.
+  static AndroidNotificationChannel get _taskChannel =>
       AndroidNotificationChannel(
         'mongez_task_channel',
-        'تذكير المهام',
-        description: 'تنبيه عند موعد المهمة',
+        L10n.current.channelTasks,
+        description: L10n.current.channelTasksDescription,
         importance: Importance.high,
       );
-  static const AndroidNotificationChannel _followUpChannel =
+  static AndroidNotificationChannel get _followUpChannel =>
       AndroidNotificationChannel(
         'mongez_followup_channel',
-        'متابعة المهام غير المنجزة',
-        description: 'تذكير إضافي إذا لم تُنجز المهمة بعد موعدها',
+        L10n.current.channelFollowUp,
+        description: L10n.current.channelFollowUpDescription,
         importance: Importance.high,
       );
-  static const AndroidNotificationChannel _planningChannel =
+  static AndroidNotificationChannel get _planningChannel =>
       AndroidNotificationChannel(
         'mongez_planning_channel',
-        'تخطيط الغد',
-        description: 'تذكير مسائي لتخطيط مهام الغد',
+        L10n.current.channelPlanning,
+        description: L10n.current.channelPlanningDescription,
         importance: Importance.defaultImportance,
       );
-  static const AndroidNotificationChannel _goalsChannel =
+  static AndroidNotificationChannel get _goalsChannel =>
       AndroidNotificationChannel(
         'mongez_goals_channel',
-        'تحفيز الأهداف',
-        description: 'تذكير أسبوعي بأهداف السنة',
+        L10n.current.channelGoals,
+        description: L10n.current.channelGoalsDescription,
         importance: Importance.defaultImportance,
       );
+
+  /// Language the channels were last created with.
+  static String? _channelsLanguage;
 
   /// Android allows ~500 pending alarms per app; stay well below it.
   static const int _maxScheduled = 380;
@@ -98,6 +104,12 @@ class NotificationService {
       onDidReceiveBackgroundNotificationResponse: backgroundHandler,
     );
 
+    await _createChannels();
+
+    _isInitialized = true;
+  }
+
+  Future<void> _createChannels() async {
     final androidPlugin = _android;
     for (final channel in <AndroidNotificationChannel>[
       _taskChannel,
@@ -107,8 +119,7 @@ class NotificationService {
     ]) {
       await androidPlugin?.createNotificationChannel(channel);
     }
-
-    _isInitialized = true;
+    _channelsLanguage = L10n.code;
   }
 
   AndroidFlutterLocalNotificationsPlugin? get _android => _plugin
@@ -256,6 +267,9 @@ class NotificationService {
 
   Future<void> _syncNow(_SyncInput input) async {
     await initialize();
+    if (_channelsLanguage != L10n.code && !kIsWeb) {
+      await _createChannels();
+    }
     _supportsExactAlarms =
         await _android?.canScheduleExactNotifications() ?? false;
 
@@ -382,9 +396,9 @@ class NotificationService {
       final key = dateKey(day);
       final payload = 'task|${task.id}|$key';
       final title = switch (task.type) {
-        TaskType.normal => 'حان وقت مهمتك',
-        TaskType.daily => 'مهمتك اليومية',
-        TaskType.weekly => 'مهمة الأسبوع لم تُنجز بعد',
+        TaskType.normal => L10n.current.notifTaskNormal,
+        TaskType.daily => L10n.current.notifTaskDaily,
+        TaskType.weekly => L10n.current.notifTaskWeekly,
       };
 
       if (at.isAfter(now)) {
@@ -409,8 +423,8 @@ class NotificationService {
             _Planned(
               id: _stableId('f-${task.id}-$key'),
               at: followAt,
-              title: 'لم تُنجز بعد ⏳',
-              body: '${task.title} — ما زال أمامك وقت، ابدأ الآن.',
+              title: L10n.current.notifFollowUpTitle,
+              body: L10n.current.notifFollowUpBody(task.title),
               channel: _followUpChannel,
               payload: payload,
               withDoneAction: true,
@@ -473,10 +487,10 @@ class NotificationService {
         _Planned(
           id: _stableId('plan-${dateKey(day)}'),
           at: at,
-          title: 'خطّط لغدك 🌙',
+          title: L10n.current.notifPlanTitle,
           body: count == 0
-              ? 'لم تضف مهام للغد بعد. دقيقتان الآن توفّر عليك يومًا مشتتًا.'
-              : 'لديك $count ${count == 1 ? 'مهمة' : 'مهام'} للغد. راجعها ورتّب أولوياتك.',
+              ? L10n.current.notifPlanEmpty
+              : L10n.current.notifPlanCount(count),
           channel: _planningChannel,
           payload: 'plan|${dateKey(next)}',
         ),
@@ -509,16 +523,16 @@ class NotificationService {
         continue;
       }
       final focus = pending.isEmpty ? null : pending[week % pending.length];
-      final quote =
-          motivationalQuotes[(at.day + week) % motivationalQuotes.length];
+      final quotes = motivationalQuotes;
+      final quote = quotes[(at.day + week) % quotes.length];
       out.add(
         _Planned(
           id: _stableId('goal-${dateKey(at)}'),
           at: at,
-          title: 'أهدافك لعام ${today.year} 🎯',
+          title: L10n.current.notifGoalsTitle(today.year),
           body: focus == null
-              ? 'أنجزت كل أهدافك ($done/$total)! $quote'
-              : 'أنجزت $done من $total. ركّز هذا الأسبوع على: ${focus.title}\n$quote',
+              ? L10n.current.notifGoalsAllDone(done, total, quote)
+              : L10n.current.notifGoalsFocus(done, total, focus.title, quote),
           channel: _goalsChannel,
           payload: 'goals',
         ),
@@ -541,10 +555,10 @@ class NotificationService {
         category: AndroidNotificationCategory.reminder,
         styleInformation: BigTextStyleInformation(item.body),
         actions: item.withDoneAction
-            ? const <AndroidNotificationAction>[
+            ? <AndroidNotificationAction>[
                 AndroidNotificationAction(
                   actionDone,
-                  'تم الإنجاز ✓',
+                  L10n.current.notifDoneAction,
                   cancelNotification: true,
                 ),
               ]

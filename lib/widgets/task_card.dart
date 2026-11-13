@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/l10n.dart';
 import '../models/task.dart';
 import '../models/task_type.dart';
 import '../utils/date_helpers.dart';
@@ -40,7 +41,9 @@ class TaskCard extends StatelessWidget {
         _MetaChip(
           icon: Icons.date_range_rounded,
           label: task.weeklyAnyDay
-              ? (isCompleted ? 'تمت هذا الأسبوع' : 'مرة هذا الأسبوع')
+              ? (isCompleted
+                    ? context.l10n.taskDoneThisWeek
+                    : context.l10n.taskOnceThisWeek)
               : formatWeekDays(task.weeklyDays, task.effectiveWeekStart),
         ),
       if (hasPriority)
@@ -153,7 +156,7 @@ class _CheckCircle extends StatelessWidget {
     return Semantics(
       checked: checked,
       button: true,
-      label: checked ? 'إلغاء الإنجاز' : 'تم الإنجاز',
+      label: checked ? context.l10n.markNotDone : context.l10n.markDone,
       child: InkResponse(
         onTap: () => onChanged(!checked),
         radius: 26,

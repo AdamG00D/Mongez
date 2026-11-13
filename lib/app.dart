@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'l10n/l10n.dart';
+
 import 'providers/reminder_coordinator.dart';
 import 'providers/screen_time_provider.dart';
 import 'providers/settings_provider.dart';
@@ -28,6 +30,12 @@ class _MongezAppState extends State<MongezApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeLocales(List<Locale>? locales) {
+    // Following the device language: pick up a change made in system settings.
+    context.read<SettingsProvider>().refreshDeviceLanguage();
   }
 
   @override
@@ -60,10 +68,11 @@ class _MongezAppState extends State<MongezApp> with WidgetsBindingObserver {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'مُنجز',
-      locale: const Locale('ar'),
-      supportedLocales: const <Locale>[Locale('ar'), Locale('en')],
+      onGenerateTitle: (BuildContext context) => context.l10n.appName,
+      locale: L10n.locale,
+      supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -76,7 +85,9 @@ class _MongezAppState extends State<MongezApp> with WidgetsBindingObserver {
         amoled: settings.amoledDark,
       ),
       themeAnimationDuration: const Duration(milliseconds: 280),
-      home: const ShellScreen(),
+      // Keyed by language so every screen rebuilds its texts (including
+      // ones computed outside the widget tree) when the language changes.
+      home: ShellScreen(key: ValueKey<String>(L10n.code)),
     );
   }
 }

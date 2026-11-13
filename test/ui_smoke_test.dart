@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:mongez/app.dart';
 import 'package:mongez/app_navigation.dart';
+import 'package:mongez/l10n/l10n.dart';
 import 'package:mongez/models/task_type.dart';
 import 'package:mongez/providers/goals_provider.dart';
 import 'package:mongez/providers/reminder_coordinator.dart';
@@ -19,13 +20,17 @@ import 'package:mongez/screens/settings_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Future<Widget> buildApp({String theme = 'light'}) async {
+Future<Widget> buildApp({
+  String theme = 'light',
+  AppLanguage language = AppLanguage.ar,
+}) async {
   final storage = LocalStorageService();
   final settings = SettingsProvider(storage);
   await settings.initialize();
   await settings.update(
     (s) => s.copyWith(
       themeMode: theme == 'dark' ? ThemeMode.dark : ThemeMode.light,
+      language: language,
     ),
   );
   final goals = GoalsProvider(storage);
@@ -69,7 +74,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    await initializeDateFormatting('ar');
+    await initializeDateFormatting();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('home_widget'), (
           MethodCall call,
@@ -319,5 +324,46 @@ void main() {
           '{"savedAt":${old.millisecondsSinceEpoch},"title":"قديمة"}',
     });
     expect(find.text('قديمة'), findsNothing);
+  });
+
+  testWidgets('English UI, and switching to Arabic from settings', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 2.75;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    AppNavigation.currentTab.value = AppNavigation.tasksTab;
+    final app = await tester.runAsync(() => buildApp(language: AppLanguage.en));
+    await tester.pumpWidget(app!);
+    await tester.pumpAndSettle();
+
+    final rtl = Directionality.of(tester.element(find.byType(Scaffold).first));
+    expect(rtl, TextDirection.ltr);
+    expect(find.text('Mongez'), findsWidgets);
+    expect(find.text('Drink 8 glasses of water'), findsOneWidget);
+    expect(find.text('Tasks'), findsWidgets);
+    expect(find.textContaining('مهام'), findsNothing);
+
+    await tester.tap(find.text('New task'));
+    await tester.pumpAndSettle();
+    expect(find.text('Week starts on'), findsNothing);
+    expect(find.text('Add task'), findsOneWidget);
+    Navigator.of(tester.element(find.text('Add task'))).pop();
+    await tester.pumpAndSettle();
+
+    AppNavigation.currentTab.value = AppNavigation.settingsTab;
+    await tester.pumpAndSettle();
+    expect(find.text('Language · اللغة'), findsOneWidget);
+    await tester.tap(find.text('العربية'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('اللغة · Language'), findsOneWidget);
+    expect(find.text('الإعدادات'), findsWidgets);
+    expect(
+      Directionality.of(tester.element(find.byType(Scaffold).first)),
+      TextDirection.rtl,
+    );
+    expect(tester.takeException(), isNull);
   });
 }

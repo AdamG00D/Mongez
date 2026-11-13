@@ -4,7 +4,7 @@
 
 # Mongez · مُنجز
 
-**A free, open-source, offline-first Arabic (RTL) planner for Android.**
+**A free, open-source, offline-first Arabic and English planner for Android.**
 Plan your day, keep your streaks, track yearly goals and screen time. No accounts, no ads, no tracking.
 
 [![Flutter CI](https://github.com/AdamG00D/Mongez/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/AdamG00D/Mongez/actions/workflows/flutter-ci.yml)
@@ -63,7 +63,7 @@ the Google Play release steps are in [`docs/GOOGLE_PLAY.md`](docs/GOOGLE_PLAY.md
 
 | Area | Choice |
 | --- | --- |
-| UI | Flutter (Material 3), Arabic RTL first |
+| UI | Flutter (Material 3), Arabic (RTL) and English, strings in `lib/l10n/*.arb` |
 | State | [`provider`](https://pub.dev/packages/provider) |
 | Storage | [`shared_preferences`](https://pub.dev/packages/shared_preferences) (JSON) |
 | Notifications | [`flutter_local_notifications`](https://pub.dev/packages/flutter_local_notifications) + `timezone` |

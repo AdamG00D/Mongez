@@ -19,18 +19,31 @@ class MongezSummaryWidgetProvider : HomeWidgetProvider() {
     val done = WidgetCommon.int(widgetData, "widget_done_count")
     val total = WidgetCommon.int(widgetData, "widget_total_count")
     val progress = WidgetCommon.int(widgetData, "widget_progress")
-    val nextTitle = WidgetCommon.string(widgetData, "widget_next_title", "افتح مُنجز")
+    val nextTitle =
+        WidgetCommon.string(
+            widgetData, "widget_next_title", context.getString(R.string.widget_open_app))
+    val counter =
+        WidgetCommon.string(
+            widgetData,
+            "widget_summary_counter",
+            if (total == 0) context.getString(R.string.widget_no_tasks_today)
+            else context.getString(R.string.widget_done_of, done, total))
+    val nextLabel =
+        WidgetCommon.string(widgetData, "widget_next_label", context.getString(R.string.widget_next))
+    val addLabel =
+        WidgetCommon.string(widgetData, "widget_add_label", context.getString(R.string.widget_add))
     val nextTime = WidgetCommon.string(widgetData, "widget_next_time")
     val allDone = total > 0 && done == total
 
     appWidgetIds.forEach { widgetId ->
       val views = RemoteViews(context.packageName, R.layout.mongez_summary_widget)
+      WidgetCommon.applyDirection(views, R.id.summary_root, widgetData)
       views.setOnClickPendingIntent(R.id.summary_root, WidgetCommon.openApp(context))
       views.setOnClickPendingIntent(R.id.summary_add, WidgetCommon.addTask(context))
       views.setTextViewText(R.id.summary_percent, "$progress%")
-      views.setTextViewText(
-          R.id.summary_counter,
-          if (total == 0) "لا مهام اليوم" else "أنجزت $done من $total")
+      views.setTextViewText(R.id.summary_counter, counter)
+      views.setTextViewText(R.id.summary_next_label, nextLabel)
+      views.setContentDescription(R.id.summary_add, addLabel)
       views.setProgressBar(R.id.summary_progress, 100, progress, false)
       views.setViewVisibility(
           R.id.summary_next_label, if (total == 0 || allDone) View.GONE else View.VISIBLE)

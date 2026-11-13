@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/l10n.dart';
 import '../models/completion_record.dart';
 import '../models/task_type.dart';
 import '../providers/task_provider.dart';
@@ -48,7 +48,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _snack(
       text,
       action: SnackBarAction(
-        label: 'تراجع',
+        label: context.l10n.undo,
         onPressed: () => provider.restoreHistory(removed),
       ),
     );
@@ -66,7 +66,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -74,7 +74,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               foregroundColor: Theme.of(context).colorScheme.onError,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -86,6 +86,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     TaskProvider provider,
     CompletionRecord record,
   ) async {
+    final l10n = context.l10n;
     final sameTask = provider.historyCountForTask(record.taskId);
     final choice = await showModalBottomSheet<String>(
       context: context,
@@ -111,14 +112,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                 child: Text(
-                  'أُنجزت ${formatFullDate(record.completedAt)} • ${DateFormat('h:mm a', 'ar').format(record.completedAt)}',
+                  context.l10n.completedAt(
+                    formatFullDate(record.completedAt),
+                    formatClockTime(record.completedAt),
+                  ),
                   style: Theme.of(sheetContext).textTheme.bodySmall,
                 ),
               ),
               ListTile(
                 leading: Icon(Icons.delete_outline_rounded, color: error),
                 title: Text(
-                  'حذف هذا الإنجاز من السجل',
+                  context.l10n.deleteThisCompletion,
                   style: TextStyle(color: error),
                 ),
                 onTap: () => Navigator.pop(sheetContext, 'one'),
@@ -127,7 +131,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ListTile(
                   leading: Icon(Icons.delete_sweep_rounded, color: error),
                   title: Text(
-                    'حذف كل إنجازات هذه المهمة ($sameTask)',
+                    context.l10n.deleteAllTaskCompletions(sameTask),
                     style: TextStyle(color: error),
                   ),
                   onTap: () => Navigator.pop(sheetContext, 'task'),
@@ -144,31 +148,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
     switch (choice) {
       case 'one':
         final removed = await provider.deleteHistoryRecord(record.id);
-        _offerUndo(provider, removed, 'تم الحذف من السجل');
+        _offerUndo(provider, removed, l10n.deletedFromHistory);
       case 'task':
         final ok = await _confirm(
-          title: 'حذف كل إنجازات المهمة؟',
-          message:
-              'سيتم حذف $sameTask إنجاز لـ "${record.taskTitle}" من السجل والعدّادات. المهمة نفسها لن تُحذف.',
+          title: l10n.deleteTaskCompletionsTitle,
+          message: l10n.deleteTaskCompletionsMessage(
+            sameTask,
+            record.taskTitle,
+          ),
         );
         if (ok) {
           final removed = await provider.deleteHistoryForTask(record.taskId);
-          _offerUndo(provider, removed, 'تم حذف ${removed.length} إنجاز');
+          _offerUndo(
+            provider,
+            removed,
+            l10n.deletedCompletions(removed.length),
+          );
         }
     }
   }
 
   Future<void> _clearAll(TaskProvider provider) async {
+    final l10n = context.l10n;
     final ok = await _confirm(
-      title: 'مسح السجل بالكامل؟',
-      message:
-          'سيتم حذف كل الإنجازات (${provider.history.length}) والعدّادات وسلاسل الأيام. مهامك نفسها لن تُحذف.',
+      title: l10n.clearHistoryTitle,
+      message: l10n.clearHistoryMessage(provider.history.length),
     );
     if (!ok) {
       return;
     }
     final removed = await provider.clearHistory();
-    _offerUndo(provider, removed, 'تم مسح السجل');
+    _offerUndo(provider, removed, l10n.historyCleared);
   }
 
   @override
@@ -213,7 +223,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     children: <Widget>[
                       Expanded(
                         child: Text(
-                          'السجل والإحصائيات',
+                          context.l10n.historyTitle,
                           style: textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w900,
                           ),
@@ -221,7 +231,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ),
                       if (provider.history.isNotEmpty)
                         PopupMenuButton<String>(
-                          tooltip: 'خيارات السجل',
+                          tooltip: context.l10n.historyOptions,
                           icon: const Icon(Icons.more_vert_rounded),
                           onSelected: (_) => _clearAll(provider),
                           itemBuilder: (BuildContext context) =>
@@ -233,7 +243,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                       Icons.delete_forever_rounded,
                                       color: scheme.error,
                                     ),
-                                    title: const Text('مسح السجل بالكامل'),
+                                    title: Text(context.l10n.clearHistory),
                                   ),
                                 ),
                               ],
@@ -249,7 +259,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(
-                                'إجمالي الإنجازات',
+                                context.l10n.totalCompletions,
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.9),
                                   fontWeight: FontWeight.w700,
@@ -263,7 +273,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 ),
                               ),
                               Text(
-                                'هذا الأسبوع ${provider.completionsSince(weekStart)} • هذا الشهر ${provider.completionsSince(monthStart)}',
+                                context.l10n.weekAndMonthCompletions(
+                                  provider.completionsSince(weekStart),
+                                  provider.completionsSince(monthStart),
+                                ),
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.9),
                                   fontWeight: FontWeight.w600,
@@ -289,7 +302,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               ),
                             ),
                             Text(
-                              'أيام متتالية',
+                              context.l10n.streakDays,
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.9),
                                 fontSize: 11.5,
@@ -297,7 +310,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               ),
                             ),
                             Text(
-                              'الأفضل: ${provider.bestStreak}',
+                              context.l10n.bestStreak(provider.bestStreak),
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 11,
@@ -308,7 +321,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ],
                     ),
                   ),
-                  const SectionTitle('عدّاد الإنجاز حسب النوع'),
+                  SectionTitle(context.l10n.countByType),
                   Row(
                     children: TaskType.values.map((TaskType type) {
                       return Expanded(
@@ -316,7 +329,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: StatTile(
                             icon: type.icon,
-                            label: 'مهام ${type.label}',
+                            label: context.l10n.typeTasks(type.label),
                             value: '${counts.of(type)}',
                             color: _typeColors[type],
                           ),
@@ -324,7 +337,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       );
                     }).toList(),
                   ),
-                  const SectionTitle('آخر 7 أيام'),
+                  SectionTitle(context.l10n.last7Days),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(10, 16, 10, 12),
@@ -332,18 +345,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         values: perDay.map((int v) => v.toDouble()).toList(),
                         labels: List<String>.generate(
                           7,
-                          (int i) =>
-                              arabicWeekDayNames[addDays(
-                                today,
-                                i - 6,
-                              ).weekday]!,
+                          (int i) => weekDayName(
+                            addDays(today, i - 6).weekday,
+                            short: true,
+                          ),
                         ),
                         valueLabel: (double v) => v.toInt().toString(),
                       ),
                     ),
                   ),
                   if (provider.topTasks().isNotEmpty) ...<Widget>[
-                    const SectionTitle('الأكثر إنجازًا'),
+                    SectionTitle(context.l10n.mostCompleted),
                     Card(
                       child: Column(
                         children: provider.topTasks().map((TaskStat stat) {
@@ -371,7 +383,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ),
                   ],
                   SectionTitle(
-                    'سجل الإنجاز',
+                    context.l10n.completionLog,
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
@@ -382,7 +394,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'اضغط على إنجاز لحذفه',
+                          context.l10n.tapToDelete,
                           style: textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
                           ),
@@ -394,7 +406,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: <Widget>[
-                        _filterChip(null, 'الكل (${counts.total})'),
+                        _filterChip(null, context.l10n.filterAll(counts.total)),
                         for (final type in TaskType.values)
                           _filterChip(
                             type,
@@ -408,12 +420,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
             if (rows.isEmpty)
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: EmptyState(
                   icon: Icons.history_rounded,
-                  title: 'لا إنجازات بعد',
-                  message:
-                      'كل مهمة تنهيها تُسجَّل هنا مع وقت إنجازها، ولا يضيع السجل عند حذف المهمة.',
+                  title: context.l10n.noCompletionsTitle,
+                  message: context.l10n.noCompletionsMessage,
                 ),
               )
             else
@@ -478,7 +489,7 @@ class _RecordTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
-    final time = DateFormat('h:mm a', 'ar').format(record.completedAt);
+    final time = formatClockTime(record.completedAt);
     final forDate = isSameDate(record.completedForDate, record.completedAt)
         ? null
         : formatShortDate(record.completedForDate);
@@ -517,7 +528,7 @@ class _RecordTile extends StatelessWidget {
                       Text(
                         forDate == null
                             ? '${record.taskType.label} • $time'
-                            : '${record.taskType.label} • $time • عن يوم $forDate',
+                            : '${record.taskType.label} • $time • ${context.l10n.forDay(forDate)}',
                         style: textTheme.bodySmall?.copyWith(
                           color: scheme.onSurfaceVariant,
                         ),

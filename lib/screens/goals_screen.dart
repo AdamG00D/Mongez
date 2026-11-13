@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/l10n.dart';
 import '../models/goal.dart';
 import '../providers/goals_provider.dart';
 import '../providers/settings_provider.dart';
@@ -25,9 +26,9 @@ class GoalsScreen extends StatelessWidget {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        const SnackBar(
-          content: Text('حققت هدفًا من أهداف السنة! 🏆 فخورون بك'),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(context.l10n.goalAchievedSnack),
+          duration: const Duration(seconds: 3),
         ),
       );
   }
@@ -36,16 +37,16 @@ class GoalsScreen extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-        title: const Text('حذف الهدف؟'),
-        content: Text('سيتم حذف "${goal.title}".'),
+        title: Text(context.l10n.deleteGoalTitle),
+        content: Text(context.l10n.deleteGoalMessage(goal.title)),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('حذف'),
+            child: Text(context.l10n.delete),
           ),
         ],
       ),
@@ -69,9 +70,9 @@ class GoalsScreen extends StatelessWidget {
         heroTag: 'add-goal',
         onPressed: () => GoalSheet.show(context),
         icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'هدف جديد',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        label: Text(
+          context.l10n.newGoal,
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
       body: SafeArea(
@@ -83,7 +84,7 @@ class GoalsScreen extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    'أهداف السنة',
+                    context.l10n.yearGoals,
                     style: textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w900,
                     ),
@@ -140,14 +141,13 @@ class GoalsScreen extends StatelessWidget {
               ),
             ),
             if (goals.isEmpty) ...<Widget>[
-              const EmptyState(
+              EmptyState(
                 icon: Icons.emoji_events_rounded,
-                title: 'ما أهم ما تريد تحقيقه هذا العام؟',
-                message:
-                    'اكتب 3 إلى 5 أهداف فقط، وأضف سببك لكل هدف. سنذكّرك بها كل أسبوع.',
+                title: context.l10n.goalsEmptyTitle,
+                message: context.l10n.goalsEmptyMessage,
               ),
               Text(
-                'اقتراحات سريعة',
+                context.l10n.quickSuggestions,
                 style: textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
@@ -167,7 +167,7 @@ class GoalsScreen extends StatelessWidget {
                     .toList(),
               ),
             ] else ...<Widget>[
-              const SectionTitle('أهدافك'),
+              SectionTitle(context.l10n.yourGoals),
               ...goals.map(
                 (Goal goal) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
@@ -241,8 +241,8 @@ class _YearHero extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       goals.isEmpty
-                          ? 'ابدأ عامك بوضوح'
-                          : 'حققت $done من ${goals.length}',
+                          ? context.l10n.goalsHeroStart
+                          : context.l10n.goalsHeroDone(done, goals.length),
                       style: textTheme.titleLarge?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
@@ -251,7 +251,7 @@ class _YearHero extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       goals.isEmpty
-                          ? 'الأهداف المكتوبة أقرب للتحقق.'
+                          ? context.l10n.goalsHeroWritten
                           : yearProgressMessage(elapsed, ratio),
                       style: textTheme.bodyMedium?.copyWith(
                         color: Colors.white.withValues(alpha: 0.9),
@@ -269,7 +269,10 @@ class _YearHero extends StatelessWidget {
             children: <Widget>[
               Flexible(
                 child: Text(
-                  'مضى ${(elapsed * 100).round()}% من ${provider.year}',
+                  context.l10n.yearElapsed(
+                    (elapsed * 100).round(),
+                    provider.year,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -282,7 +285,7 @@ class _YearHero extends StatelessWidget {
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'متبقٍ ${provider.daysLeftInYear} يومًا',
+                  context.l10n.daysLeftInYear(provider.daysLeftInYear),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.end,
@@ -367,7 +370,9 @@ class _GoalCard extends StatelessWidget {
                   ),
                   if (!goal.hasTarget || goal.isCompleted)
                     IconButton(
-                      tooltip: goal.isCompleted ? 'إلغاء' : 'تحقق',
+                      tooltip: goal.isCompleted
+                          ? context.l10n.goalUnmark
+                          : context.l10n.goalMarkAchieved,
                       onPressed: onToggle,
                       icon: Icon(
                         goal.isCompleted
@@ -435,13 +440,13 @@ class _GoalCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     IconButton.outlined(
-                      tooltip: 'إنقاص',
+                      tooltip: context.l10n.decrease,
                       onPressed: goal.progress > 0 ? () => onStep(-1) : null,
                       icon: const Icon(Icons.remove_rounded),
                     ),
                     const SizedBox(width: 4),
                     IconButton.filled(
-                      tooltip: 'زيادة',
+                      tooltip: context.l10n.increase,
                       onPressed: goal.isCompleted ? null : () => onStep(1),
                       icon: const Icon(Icons.add_rounded),
                     ),

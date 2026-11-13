@@ -47,8 +47,11 @@ a signing key: debug builds and unsigned release builds work out of the box.
 ## Code guidelines
 
 - Follow the lints in `analysis_options.yaml` and the existing style.
-- **User-facing text is Arabic** and the UI is RTL. Use `EdgeInsetsDirectional` and
-  `AlignmentDirectional` rather than left/right.
+- **User-facing text lives in `lib/l10n/app_ar.arb` and `lib/l10n/app_en.arb`** — add every
+  new string to both (a test checks they have the same keys). In widgets use
+  `context.l10n.<key>`; code without a `BuildContext` (notifications, widgets, background
+  isolates) uses `L10n.current`. The UI is RTL in Arabic and LTR in English, so use
+  `EdgeInsetsDirectional` and `AlignmentDirectional` rather than left/right.
 - State lives in `providers/`. Widgets read it with `context.watch` / `context.read`.
 - Every completion change goes through `TaskMutations.toggle`, so the app, the home-screen
   widget and notification actions all behave the same way.

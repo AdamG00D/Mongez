@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../l10n/l10n.dart';
 import '../models/app_settings.dart';
 import '../models/completion_record.dart';
 import '../models/goal.dart';
@@ -619,7 +620,7 @@ class TaskProvider extends ChangeNotifier {
     _tasks.addAll(<Task>[
       Task(
         id: _generateId('task'),
-        title: 'تخطيط أولويات الغد',
+        title: L10n.current.seedPlanTomorrow,
         type: TaskType.daily,
         scheduledDate: today,
         timeInMinutes: 21 * 60 + 30,
@@ -629,7 +630,7 @@ class TaskProvider extends ChangeNotifier {
       ),
       Task(
         id: _generateId('task'),
-        title: 'شرب 8 أكواب ماء',
+        title: L10n.current.seedWater,
         type: TaskType.daily,
         scheduledDate: today,
         createdAt: now,
@@ -637,7 +638,7 @@ class TaskProvider extends ChangeNotifier {
       ),
       Task(
         id: _generateId('task'),
-        title: 'تمارين خفيفة 20 دقيقة',
+        title: L10n.current.seedExercise,
         type: TaskType.weekly,
         scheduledDate: today,
         weeklyAnyDay: false,

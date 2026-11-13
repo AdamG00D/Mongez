@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:background="@drawable/widget_task_row_bg"
     android:gravity="center_vertical"
-    android:layoutDirection="rtl"
+    android:layoutDirection="locale"
     android:minHeight="44dp"
     android:orientation="horizontal"
     android:paddingStart="10dp"
@@ -29,9 +29,9 @@
         android:layout_weight="1"
         android:ellipsize="end"
         android:maxLines="1"
-        android:text="مهمة"
+        android:text=""
         android:textColor="@color/widget_text"
-        android:textDirection="rtl"
+        android:textAlignment="viewStart"
         android:textSize="14sp"
         android:textStyle="bold" />
 

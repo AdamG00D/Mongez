@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/l10n.dart';
 import '../models/task.dart';
 import '../models/task_type.dart';
 import '../providers/task_provider.dart';
@@ -175,7 +175,6 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
-      locale: const Locale('ar'),
     );
     if (pickedDate != null) {
       setState(() => _selectedDate = dateOnly(pickedDate));
@@ -226,11 +225,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     if (_selectedType == TaskType.weekly &&
         !_weeklyAnyDay &&
         _weeklyDays.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('اختر يومًا واحدًا على الأقل للمهمة الأسبوعية'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.l10n.chooseWeeklyDay)));
       return;
     }
 
@@ -296,7 +293,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     final isCustomDate =
         !isSameDate(_selectedDate, today) &&
         !isSameDate(_selectedDate, tomorrow);
-    final dateLabel = DateFormat('EEEE d MMMM', 'ar').format(_selectedDate);
+    final dateLabel = formatWeekdayDayMonth(_selectedDate);
 
     Widget label(String text) => Padding(
       padding: const EdgeInsets.only(top: 18, bottom: 8),
@@ -317,7 +314,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                widget.isEditing ? 'تعديل المهمة' : 'مهمة جديدة',
+                widget.isEditing ? context.l10n.editTask : context.l10n.newTask,
                 style: textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w900,
                 ),
@@ -332,13 +329,13 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
                 ),
-                decoration: const InputDecoration(
-                  hintText: 'ماذا تريد أن تنجز؟',
-                  prefixIcon: Icon(Icons.edit_note_rounded),
+                decoration: InputDecoration(
+                  hintText: context.l10n.taskTitleHint,
+                  prefixIcon: const Icon(Icons.edit_note_rounded),
                 ),
                 validator: (String? value) =>
                     (value == null || value.trim().isEmpty)
-                    ? 'اكتب اسم المهمة'
+                    ? context.l10n.taskTitleRequired
                     : null,
                 onFieldSubmitted: (_) => _submit(),
               ),
@@ -351,9 +348,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                           controller: _noteController,
                           minLines: 2,
                           maxLines: 4,
-                          decoration: const InputDecoration(
-                            hintText: 'ملاحظات أو تفاصيل (اختياري)',
-                            prefixIcon: Icon(Icons.notes_rounded),
+                          decoration: InputDecoration(
+                            hintText: context.l10n.noteHint,
+                            prefixIcon: const Icon(Icons.notes_rounded),
                           ),
                         ),
                       )
@@ -362,11 +359,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                         child: TextButton.icon(
                           onPressed: () => setState(() => _showNote = true),
                           icon: const Icon(Icons.add_rounded, size: 18),
-                          label: const Text('إضافة ملاحظة'),
+                          label: Text(context.l10n.addNote),
                         ),
                       ),
               ),
-              label('النوع'),
+              label(context.l10n.taskTypeLabel),
               SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<TaskType>(
@@ -385,30 +382,36 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       setState(() => _selectedType = values.first),
                 ),
               ),
-              label(_selectedType == TaskType.normal ? 'اليوم' : 'تبدأ من'),
+              label(
+                _selectedType == TaskType.normal
+                    ? context.l10n.today
+                    : context.l10n.startsFrom,
+              ),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: <Widget>[
                   ChoiceChip(
-                    label: const Text('اليوم'),
+                    label: Text(context.l10n.today),
                     selected: isSameDate(_selectedDate, today),
                     onSelected: (_) => setState(() => _selectedDate = today),
                   ),
                   ChoiceChip(
-                    label: const Text('غدًا'),
+                    label: Text(context.l10n.tomorrow),
                     selected: isSameDate(_selectedDate, tomorrow),
                     onSelected: (_) => setState(() => _selectedDate = tomorrow),
                   ),
                   ChoiceChip(
                     avatar: const Icon(Icons.calendar_month_rounded, size: 18),
-                    label: Text(isCustomDate ? dateLabel : 'تاريخ آخر'),
+                    label: Text(
+                      isCustomDate ? dateLabel : context.l10n.otherDate,
+                    ),
                     selected: isCustomDate,
                     onSelected: (_) => _pickDate(),
                   ),
                 ],
               ),
-              label('الوقت والتذكير'),
+              label(context.l10n.timeAndReminder),
               Row(
                 children: <Widget>[
                   Expanded(
@@ -421,8 +424,12 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                       ),
                       label: Text(
                         _selectedTime == null
-                            ? 'بدون وقت (بدون تذكير)'
-                            : 'تذكير ${MaterialLocalizations.of(context).formatTimeOfDay(_selectedTime!)}',
+                            ? context.l10n.noTimeNoReminder
+                            : context.l10n.reminderAt(
+                                MaterialLocalizations.of(
+                                  context,
+                                ).formatTimeOfDay(_selectedTime!),
+                              ),
                       ),
                     ),
                   ),
@@ -431,13 +438,13 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                     IconButton.filledTonal(
                       onPressed: () => setState(() => _selectedTime = null),
                       icon: const Icon(Icons.close_rounded),
-                      tooltip: 'حذف الوقت',
+                      tooltip: context.l10n.removeTime,
                     ),
                   ],
                 ],
               ),
               if (_selectedType == TaskType.weekly) _weeklyOptions(context),
-              label('الأولوية'),
+              label(context.l10n.priority),
               Wrap(
                 spacing: 8,
                 children: TaskPriority.values.map((TaskPriority p) {
@@ -469,7 +476,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                         )
                       : const Icon(Icons.check_rounded),
                   label: Text(
-                    widget.isEditing ? 'حفظ التعديلات' : 'إضافة المهمة',
+                    widget.isEditing
+                        ? context.l10n.saveChanges
+                        : context.l10n.addTask,
                   ),
                 ),
               ),
@@ -498,7 +507,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'يبدأ الأسبوع يوم',
+              context.l10n.weekStartsOn,
               style: textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
@@ -511,7 +520,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   return Padding(
                     padding: const EdgeInsetsDirectional.only(end: 6),
                     child: ChoiceChip(
-                      label: Text(arabicWeekDayNames[day]!),
+                      label: Text(weekDayName(day)),
                       selected: _weekStartDay == day,
                       onSelected: (_) => setState(() => _weekStartDay = day),
                     ),
@@ -529,10 +538,10 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   _weeklyDays = <int>{};
                 }
               }),
-              title: const Text('مرة واحدة في أي يوم من الأسبوع'),
+              title: Text(context.l10n.onceAnyDay),
             ),
             if (!_weeklyAnyDay) ...<Widget>[
-              const Text('الأيام المتاحة:'),
+              Text(context.l10n.availableDays),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
@@ -541,7 +550,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   return FilterChip(
                     showCheckmark: false,
                     selected: _weeklyDays.contains(day),
-                    label: Text(arabicWeekDayNames[day]!),
+                    label: Text(weekDayName(day)),
                     onSelected: (bool value) => setState(() {
                       if (value) {
                         _weeklyDays.add(day);
@@ -555,7 +564,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             ],
             const SizedBox(height: 12),
             Text(
-              'إذا لم تُنجز، ذكّرني',
+              context.l10n.ifNotDoneRemindMe,
               style: textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
@@ -578,7 +587,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'حدّد وقتًا للمهمة لتفعيل التذكيرات.',
+                  context.l10n.setTimeForReminders,
                   style: textTheme.bodySmall?.copyWith(color: scheme.error),
                 ),
               ),

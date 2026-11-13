@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 
+import '../l10n/l10n.dart';
 import '../app_navigation.dart';
 import '../theme/backgrounds.dart';
 import 'goals_screen.dart';
@@ -19,7 +20,12 @@ class ShellScreen extends StatefulWidget {
 }
 
 class _ShellScreenState extends State<ShellScreen> {
-  final Set<int> _visited = <int>{AppNavigation.tasksTab};
+  // Includes the current tab: the shell is rebuilt from scratch when the
+  // language changes, usually while the settings tab is open.
+  final Set<int> _visited = <int>{
+    AppNavigation.tasksTab,
+    AppNavigation.currentTab.value,
+  };
 
   /// One messenger per tab so a tab's SnackBar never covers another tab.
   final List<GlobalKey<ScaffoldMessengerState>> _messengers =
@@ -105,31 +111,31 @@ class _ShellScreenState extends State<ShellScreen> {
           onDestinationSelected: (int index) =>
               AppNavigation.currentTab.value = index,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: const <NavigationDestination>[
+          destinations: <NavigationDestination>[
             NavigationDestination(
-              icon: Icon(Icons.check_circle_outline_rounded),
-              selectedIcon: Icon(Icons.check_circle_rounded),
-              label: 'المهام',
+              icon: const Icon(Icons.check_circle_outline_rounded),
+              selectedIcon: const Icon(Icons.check_circle_rounded),
+              label: context.l10n.navTasks,
             ),
             NavigationDestination(
-              icon: Icon(Icons.flag_outlined),
-              selectedIcon: Icon(Icons.flag_rounded),
-              label: 'الأهداف',
+              icon: const Icon(Icons.flag_outlined),
+              selectedIcon: const Icon(Icons.flag_rounded),
+              label: context.l10n.navGoals,
             ),
             NavigationDestination(
-              icon: Icon(Icons.insights_outlined),
-              selectedIcon: Icon(Icons.insights_rounded),
-              label: 'السجل',
+              icon: const Icon(Icons.insights_outlined),
+              selectedIcon: const Icon(Icons.insights_rounded),
+              label: context.l10n.navHistory,
             ),
             NavigationDestination(
-              icon: Icon(Icons.phone_android_outlined),
-              selectedIcon: Icon(Icons.phone_android_rounded),
-              label: 'وقت الشاشة',
+              icon: const Icon(Icons.phone_android_outlined),
+              selectedIcon: const Icon(Icons.phone_android_rounded),
+              label: context.l10n.navScreenTime,
             ),
             NavigationDestination(
-              icon: Icon(Icons.tune_outlined),
-              selectedIcon: Icon(Icons.tune_rounded),
-              label: 'الإعدادات',
+              icon: const Icon(Icons.tune_outlined),
+              selectedIcon: const Icon(Icons.tune_rounded),
+              label: context.l10n.navSettings,
             ),
           ],
         ),

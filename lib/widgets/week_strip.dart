@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
+import '../l10n/l10n.dart';
 import '../theme/palettes.dart';
 import '../utils/date_helpers.dart';
 
@@ -27,7 +27,7 @@ class WeekStrip extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final start = startOfWeek(selectedDate);
     final today = todayDate();
-    final monthLabel = DateFormat('MMMM yyyy', 'ar').format(selectedDate);
+    final monthLabel = formatMonthYear(selectedDate);
 
     return Column(
       children: <Widget>[
@@ -71,19 +71,19 @@ class WeekStrip extends StatelessWidget {
               TextButton(
                 onPressed: () => onSelect(today),
                 style: _compactHeaderButtonStyle,
-                child: const Text('اليوم'),
+                child: Text(context.l10n.today),
               ),
             if (!isSameDate(selectedDate, addDays(today, 1)))
               TextButton(
                 onPressed: () => onSelect(addDays(today, 1)),
                 style: _compactHeaderButtonStyle,
-                child: const Text('غدًا'),
+                child: Text(context.l10n.tomorrow),
               ),
             IconButton(
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-              tooltip: 'الأسبوع السابق',
+              tooltip: context.l10n.previousWeek,
               onPressed: () => onSelect(addDays(selectedDate, -7)),
               // Auto-mirrored in RTL: points right (= back in Arabic).
               icon: const Icon(Icons.chevron_left_rounded),
@@ -92,7 +92,7 @@ class WeekStrip extends StatelessWidget {
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-              tooltip: 'الأسبوع التالي',
+              tooltip: context.l10n.nextWeek,
               onPressed: () => onSelect(addDays(selectedDate, 7)),
               icon: const Icon(Icons.chevron_right_rounded),
             ),
@@ -105,8 +105,11 @@ class WeekStrip extends StatelessWidget {
             if (velocity.abs() < 250) {
               return;
             }
-            // RTL: swiping right goes forward in time.
-            onSelect(addDays(selectedDate, velocity > 0 ? 7 : -7));
+            // Swiping toward the reading start goes forward in time
+            // (right in Arabic, left in English).
+            final rtl = Directionality.of(context) == TextDirection.rtl;
+            final forward = rtl ? velocity > 0 : velocity < 0;
+            onSelect(addDays(selectedDate, forward ? 7 : -7));
           },
           child: Row(
             children: List<Widget>.generate(7, (int i) {
@@ -194,13 +197,13 @@ class _DayCell extends StatelessWidget {
           ),
           child: Column(
             children: <Widget>[
-              // Full day name, shrunk to fit narrow cells (الأربعاء, الثلاثاء).
+              // Day name (short in English), shrunk to fit narrow cells.
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3),
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    arabicWeekDayNames[day.weekday] ?? '',
+                    weekDayName(day.weekday, short: true),
                     maxLines: 1,
                     style: TextStyle(
                       fontSize: 11.5,

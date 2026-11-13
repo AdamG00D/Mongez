@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
+
 enum StartPage { auto, today, tomorrow }
 
 extension StartPageLabel on StartPage {
   String get label {
     return switch (this) {
-      StartPage.auto => 'تلقائي',
-      StartPage.today => 'اليوم',
-      StartPage.tomorrow => 'غدًا',
+      StartPage.auto => L10n.current.startPageAuto,
+      StartPage.today => L10n.current.today,
+      StartPage.tomorrow => L10n.current.tomorrow,
     };
   }
 }
@@ -15,6 +17,7 @@ extension StartPageLabel on StartPage {
 class AppSettings {
   const AppSettings({
     this.themeMode = ThemeMode.system,
+    this.language = AppLanguage.system,
     this.paletteId = 'ocean',
     this.backgroundId = 'aurora',
     this.customBackgroundPath,
@@ -32,6 +35,9 @@ class AppSettings {
   });
 
   final ThemeMode themeMode;
+
+  /// App language; [AppLanguage.system] follows the device.
+  final AppLanguage language;
   final String paletteId;
   final String backgroundId;
   final String? customBackgroundPath;
@@ -59,6 +65,7 @@ class AppSettings {
 
   AppSettings copyWith({
     ThemeMode? themeMode,
+    AppLanguage? language,
     String? paletteId,
     String? backgroundId,
     String? customBackgroundPath,
@@ -77,6 +84,7 @@ class AppSettings {
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
+      language: language ?? this.language,
       paletteId: paletteId ?? this.paletteId,
       backgroundId: backgroundId ?? this.backgroundId,
       customBackgroundPath: clearCustomBackground
@@ -99,6 +107,7 @@ class AppSettings {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'themeMode': themeMode.name,
+    'language': language.name,
     'paletteId': paletteId,
     'backgroundId': backgroundId,
     'customBackgroundPath': customBackgroundPath,
@@ -128,6 +137,10 @@ class AppSettings {
       themeMode: ThemeMode.values.firstWhere(
         (ThemeMode mode) => mode.name == json['themeMode'],
         orElse: () => defaults.themeMode,
+      ),
+      language: AppLanguage.values.firstWhere(
+        (AppLanguage language) => language.name == json['language'],
+        orElse: () => defaults.language,
       ),
       paletteId: pick<String>('paletteId', defaults.paletteId),
       backgroundId: pick<String>('backgroundId', defaults.backgroundId),

@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/l10n.dart';
 import '../models/app_settings.dart';
 import '../providers/goals_provider.dart';
 import '../providers/reminder_coordinator.dart';
@@ -20,6 +21,9 @@ class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
   static const String appVersion = '2.0.2';
+
+  /// The project's source code page.
+  static const String repoUrl = 'https://github.com/AdamG00D/Mongez';
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -50,6 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _enableNotifications() async {
+    final l10n = context.l10n;
     await context.read<NotificationService>().requestPermissions();
     if (!mounted) {
       return;
@@ -58,8 +63,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _checkNotifications();
     _snack(
       _notificationsEnabled ?? false
-          ? 'الإشعارات مفعّلة وتم تحديث التذكيرات'
-          : 'لم يتم منح صلاحية الإشعارات',
+          ? l10n.notificationsEnabledUpdated
+          : l10n.notificationsNotGranted,
     );
   }
 
@@ -77,19 +82,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _export() async {
+    final l10n = context.l10n;
     final tasks = context.read<TaskProvider>();
     final goals = context.read<GoalsProvider>();
     try {
       final saved = await BackupService().export(tasks.backupData(goals.goals));
       if (saved) {
-        _snack('تم حفظ النسخة الاحتياطية');
+        _snack(l10n.backupSaved);
       }
     } catch (error) {
-      _snack('تعذر حفظ النسخة: $error');
+      _snack(l10n.backupSaveFailed('$error'));
     }
   }
 
   Future<void> _import() async {
+    final l10n = context.l10n;
     final tasks = context.read<TaskProvider>();
     final goals = context.read<GoalsProvider>();
     final BackupData? data;
@@ -99,7 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _snack(error.message);
       return;
     } catch (error) {
-      _snack('تعذر قراءة الملف');
+      _snack(l10n.fileReadFailed);
       return;
     }
     if (data == null || !mounted) {
@@ -108,19 +115,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-        title: const Text('استعادة النسخة؟'),
+        title: Text(context.l10n.restoreTitle),
         content: Text(
-          'سيتم استبدال المهام (${data!.tasks.length}) والأهداف (${data.goals.length}) الحالية. '
-          'السجل لن يُحذف، بل ستُدمج سجلات النسخة (${data.history.length}) معه.',
+          context.l10n.restoreMessage(
+            data!.tasks.length,
+            data.goals.length,
+            data.history.length,
+          ),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('استعادة'),
+            child: Text(context.l10n.restore),
           ),
         ],
       ),
@@ -130,27 +140,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     await tasks.importBackup(data);
     await goals.replaceAll(data.goals);
-    _snack('تمت الاستعادة بنجاح');
+    _snack(l10n.restoreDone);
   }
 
   Future<void> _pinWidget({required bool summary}) async {
+    final l10n = context.l10n;
     final ok = await context.read<TaskProvider>().requestPinWidget(
       summary: summary,
     );
-    _snack(
-      ok
-          ? 'تم إرسال طلب إضافة الويدجت إلى الشاشة الرئيسية'
-          : 'اللانشر لا يدعم الإضافة التلقائية. أضف الويدجت يدويًا من قائمة الويدجت.',
-    );
+    _snack(ok ? l10n.widgetPinRequested : l10n.widgetPinUnsupported);
   }
 
   Future<void> _openLink(String url) async {
+    final l10n = context.l10n;
     final opened = await launchUrl(
       Uri.parse(url),
       mode: LaunchMode.externalApplication,
     );
     if (!opened) {
-      _snack('تعذر فتح الرابط');
+      _snack(l10n.linkOpenFailed);
     }
   }
 
@@ -158,6 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final settingsProvider = context.watch<SettingsProvider>();
     final s = settingsProvider.settings;
+    final l10n = context.l10n;
     final scheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -174,14 +183,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: EdgeInsets.fromLTRB(16, 8, 16, 24 + bottomPad),
           children: <Widget>[
             Text(
-              'الإعدادات',
+              l10n.navSettings,
               style: textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w900,
               ),
             ),
 
+            // -------------------------------------------------- Language
+            // Titled in both languages so it can be found from either.
+            SectionTitle(
+              L10n.isArabic ? 'اللغة · Language' : 'Language · اللغة',
+            ),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<AppLanguage>(
+                    showSelectedIcon: false,
+                    segments: <ButtonSegment<AppLanguage>>[
+                      ButtonSegment<AppLanguage>(
+                        value: AppLanguage.system,
+                        icon: const Icon(Icons.phone_android_rounded),
+                        label: Text(l10n.languageSystem),
+                      ),
+                      ButtonSegment<AppLanguage>(
+                        value: AppLanguage.ar,
+                        label: Text(l10n.languageArabic),
+                      ),
+                      ButtonSegment<AppLanguage>(
+                        value: AppLanguage.en,
+                        label: Text(l10n.languageEnglish),
+                      ),
+                    ],
+                    selected: <AppLanguage>{s.language},
+                    onSelectionChanged: (Set<AppLanguage> v) =>
+                        settingsProvider.setLanguage(v.first),
+                  ),
+                ),
+              ),
+            ),
+
             // ------------------------------------------------ Appearance
-            const SectionTitle('المظهر'),
+            SectionTitle(l10n.appearance),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -192,21 +236,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       width: double.infinity,
                       child: SegmentedButton<ThemeMode>(
                         showSelectedIcon: false,
-                        segments: const <ButtonSegment<ThemeMode>>[
+                        segments: <ButtonSegment<ThemeMode>>[
                           ButtonSegment<ThemeMode>(
                             value: ThemeMode.light,
-                            icon: Icon(Icons.light_mode_rounded),
-                            label: Text('فاتح'),
+                            icon: const Icon(Icons.light_mode_rounded),
+                            label: Text(l10n.themeLight),
                           ),
                           ButtonSegment<ThemeMode>(
                             value: ThemeMode.dark,
-                            icon: Icon(Icons.dark_mode_rounded),
-                            label: Text('داكن'),
+                            icon: const Icon(Icons.dark_mode_rounded),
+                            label: Text(l10n.themeDark),
                           ),
                           ButtonSegment<ThemeMode>(
                             value: ThemeMode.system,
-                            icon: Icon(Icons.brightness_auto_rounded),
-                            label: Text('النظام'),
+                            icon: const Icon(Icons.brightness_auto_rounded),
+                            label: Text(l10n.themeSystem),
                           ),
                         ],
                         selected: <ThemeMode>{s.themeMode},
@@ -217,7 +261,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'سمة الألوان',
+                      l10n.colorTheme,
                       style: textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -284,14 +328,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         value: s.amoledDark,
                         onChanged: (bool v) =>
                             set((AppSettings c) => c.copyWith(amoledDark: v)),
-                        title: const Text('أسود كامل (AMOLED)'),
-                        subtitle: const Text('يوفّر البطارية في شاشات OLED'),
+                        title: Text(l10n.amoledTitle),
+                        subtitle: Text(l10n.amoledSubtitle),
                       ),
                   ],
                 ),
               ),
             ),
-            const SectionTitle('خلفية التطبيق'),
+            SectionTitle(l10n.appBackground),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -318,13 +362,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         _BackgroundTile(
-                          label: 'صورة من جهازك',
+                          label: l10n.backgroundCustom,
                           selected: s.backgroundId == 'custom',
                           onTap: () async {
                             try {
                               await settingsProvider.pickCustomBackground();
                             } catch (_) {
-                              _snack('تعذر اختيار الصورة');
+                              _snack(l10n.imagePickFailed);
                             }
                           },
                           preview: s.customBackgroundPath != null
@@ -346,10 +390,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     if (s.backgroundId == 'custom') ...<Widget>[
                       const SizedBox(height: 12),
-                      Text(
-                        'تعتيم الصورة لوضوح النص',
-                        style: textTheme.labelLarge,
-                      ),
+                      Text(l10n.dimImage, style: textTheme.labelLarge),
                       Slider(
                         value: s.backgroundDim.clamp(0.0, 0.85),
                         max: 0.85,
@@ -364,11 +405,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           try {
                             await settingsProvider.pickCustomBackground();
                           } catch (_) {
-                            _snack('تعذر اختيار الصورة');
+                            _snack(l10n.imagePickFailed);
                           }
                         },
                         icon: const Icon(Icons.photo_library_rounded),
-                        label: const Text('تغيير الصورة'),
+                        label: Text(l10n.changeImage),
                       ),
                     ],
                   ],
@@ -377,16 +418,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             // --------------------------------------------------- Tasks
-            const SectionTitle('المهام والأسبوع'),
+            SectionTitle(l10n.tasksAndWeek),
             Card(
               child: Column(
                 children: <Widget>[
                   ListTile(
                     leading: const Icon(Icons.calendar_view_week_rounded),
-                    title: const Text('أول أيام الأسبوع'),
-                    subtitle: const Text(
-                      'يحدد بداية الأسبوع للمهام الأسبوعية والإحصائيات',
-                    ),
+                    title: Text(l10n.firstDayOfWeek),
+                    subtitle: Text(l10n.firstDayOfWeekSubtitle),
                     trailing: DropdownButton<int>(
                       value: s.weekStartDay,
                       underline: const SizedBox.shrink(),
@@ -395,7 +434,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           .map(
                             (int d) => DropdownMenuItem<int>(
                               value: d,
-                              child: Text(arabicWeekDayNames[d]!),
+                              child: Text(weekDayName(d)),
                             ),
                           )
                           .toList(),
@@ -413,14 +452,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          'اليوم الظاهر عند فتح التطبيق',
+                          l10n.startDayTitle,
                           style: textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'تلقائي: اليوم نهارًا، والغد بعد الساعة 7 مساءً للتخطيط.',
+                          l10n.startDayAutoHint,
                           style: textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
                           ),
@@ -453,24 +492,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: s.hideCompleted,
                     onChanged: (bool v) =>
                         set((AppSettings c) => c.copyWith(hideCompleted: v)),
-                    title: const Text('إخفاء المهام المكتملة'),
+                    title: Text(l10n.hideCompletedTasks),
                   ),
                   SwitchListTile(
                     secondary: const Icon(Icons.celebration_rounded),
                     value: s.celebrate,
                     onChanged: (bool v) =>
                         set((AppSettings c) => c.copyWith(celebrate: v)),
-                    title: const Text('الاحتفال والأصوات'),
-                    subtitle: const Text(
-                      'صوت عند إنجاز كل مهمة، واحتفال بصوت عند إنهاء مهام اليوم أو تحقيق هدف',
-                    ),
+                    title: Text(l10n.celebrateTitle),
+                    subtitle: Text(l10n.celebrateSubtitle),
                   ),
                 ],
               ),
             ),
 
             // ----------------------------------------------- Reminders
-            const SectionTitle('التذكيرات'),
+            SectionTitle(l10n.reminders),
             Card(
               child: Column(
                 children: <Widget>[
@@ -485,10 +522,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     title: Text(
                       _notificationsEnabled ?? false
-                          ? 'الإشعارات مفعّلة'
-                          : 'الإشعارات غير مفعّلة',
+                          ? l10n.notificationsEnabled
+                          : l10n.notificationsDisabled,
                     ),
-                    subtitle: const Text('اضغط لمنح الصلاحيات وتحديث المواعيد'),
+                    subtitle: Text(l10n.notificationsTapToGrant),
                     onTap: _enableNotifications,
                   ),
                   const Divider(indent: 16, endIndent: 16),
@@ -498,9 +535,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: (bool v) => set(
                       (AppSettings c) => c.copyWith(followUpReminders: v),
                     ),
-                    title: const Text('ذكّرني مجددًا إن لم أُنجز'),
+                    title: Text(l10n.followUpTitle),
                     subtitle: Text(
-                      'بعد ${formatDurationShort(Duration(minutes: s.followUpMinutes))} من موعد المهمة',
+                      l10n.followUpSubtitle(
+                        formatDurationShort(
+                          Duration(minutes: s.followUpMinutes),
+                        ),
+                      ),
                     ),
                   ),
                   if (s.followUpReminders)
@@ -526,9 +567,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: s.planningReminder,
                     onChanged: (bool v) =>
                         set((AppSettings c) => c.copyWith(planningReminder: v)),
-                    title: const Text('تذكير مسائي لتخطيط الغد'),
+                    title: Text(l10n.planningTitle),
                     subtitle: Text(
-                      'يوميًا الساعة ${formatMinutesOfDay(s.planningReminderMinutes)}',
+                      l10n.planningSubtitle(
+                        formatMinutesOfDay(s.planningReminderMinutes),
+                      ),
                     ),
                   ),
                   if (s.planningReminder)
@@ -545,7 +588,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ),
                           icon: const Icon(Icons.schedule_rounded),
-                          label: const Text('تغيير الوقت'),
+                          label: Text(l10n.changeTime),
                         ),
                       ),
                     ),
@@ -554,40 +597,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: s.goalsReminder,
                     onChanged: (bool v) =>
                         set((AppSettings c) => c.copyWith(goalsReminder: v)),
-                    title: const Text('تحفيز أسبوعي بأهداف السنة'),
-                    subtitle: const Text('كل جمعة الساعة 10 صباحًا'),
+                    title: Text(l10n.goalsReminderTitle),
+                    subtitle: Text(l10n.goalsReminderSubtitle),
                   ),
                 ],
               ),
             ),
 
             // ------------------------------------------------- Widgets
-            const SectionTitle('ويدجت الشاشة الرئيسية'),
+            SectionTitle(l10n.homeWidgets),
             Card(
               child: Column(
                 children: <Widget>[
                   ListTile(
                     leading: const Icon(Icons.view_list_rounded),
-                    title: const Text('ويدجت مهام اليوم'),
-                    subtitle: const Text(
-                      'قائمة المهام مع التقدّم وإنجاز بلمسة',
-                    ),
+                    title: Text(l10n.todayWidget),
+                    subtitle: Text(l10n.todayWidgetSubtitle),
                     trailing: const Icon(Icons.add_to_home_screen_rounded),
                     onTap: () => _pinWidget(summary: false),
                   ),
                   ListTile(
                     leading: const Icon(Icons.donut_large_rounded),
-                    title: const Text('ويدجت الملخّص'),
-                    subtitle: const Text('نسبة الإنجاز والمهمة التالية'),
+                    title: Text(l10n.summaryWidget),
+                    subtitle: Text(l10n.summaryWidgetSubtitle),
                     trailing: const Icon(Icons.add_to_home_screen_rounded),
                     onTap: () => _pinWidget(summary: true),
                   ),
                   ListTile(
                     leading: const Icon(Icons.refresh_rounded),
-                    title: const Text('تحديث الويدجت الآن'),
+                    title: Text(l10n.refreshWidgetNow),
                     onTap: () async {
                       await context.read<TaskProvider>().refreshWidget();
-                      _snack('تم تحديث الويدجت');
+                      _snack(l10n.widgetRefreshed);
                     },
                   ),
                 ],
@@ -595,20 +636,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             // ---------------------------------------------------- Data
-            const SectionTitle('البيانات'),
+            SectionTitle(l10n.data),
             Card(
               child: Column(
                 children: <Widget>[
                   ListTile(
                     leading: const Icon(Icons.upload_file_rounded),
-                    title: const Text('حفظ نسخة احتياطية'),
-                    subtitle: const Text('المهام والأهداف والسجل في ملف واحد'),
+                    title: Text(l10n.saveBackup),
+                    subtitle: Text(l10n.saveBackupSubtitle),
                     onTap: _export,
                   ),
                   ListTile(
                     leading: const Icon(Icons.restore_page_rounded),
-                    title: const Text('استعادة من نسخة'),
-                    subtitle: const Text('السجل يُدمج ولا يُحذف أبدًا'),
+                    title: Text(l10n.restoreFromBackup),
+                    subtitle: Text(l10n.restoreFromBackupSubtitle),
                     onTap: _import,
                   ),
                 ],
@@ -616,7 +657,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             // --------------------------------------------------- About
-            const SectionTitle('حول التطبيق'),
+            SectionTitle(l10n.about),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -631,13 +672,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Text(
-                                'مُنجز',
+                                l10n.appName,
                                 style: textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
                               Text(
-                                'الإصدار ${SettingsScreen.appVersion} • يعمل بدون إنترنت',
+                                l10n.versionOffline(SettingsScreen.appVersion),
                                 style: textTheme.bodySmall?.copyWith(
                                   color: scheme.onSurfaceVariant,
                                 ),
@@ -653,15 +694,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () => PrivacyPolicyScreen.open(context),
                         icon: const Icon(Icons.privacy_tip_outlined, size: 18),
-                        label: const Text('سياسة الخصوصية'),
+                        label: Text(l10n.privacyPolicy),
                       ),
                     ),
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () =>
-                            _openLink('https://github.com/AdamG00D'),
+                        onPressed: () => _openLink(SettingsScreen.repoUrl),
                         icon: const FaIcon(FontAwesomeIcons.github, size: 18),
                         label: const Text('GitHub'),
                       ),

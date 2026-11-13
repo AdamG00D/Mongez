@@ -4,26 +4,42 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/l10n.dart';
 import '../providers/settings_provider.dart';
 import 'palettes.dart';
 
 class BackgroundOption {
-  const BackgroundOption(this.id, this.name, this.icon);
+  const BackgroundOption(this.id, this.icon);
 
   final String id;
-  final String name;
   final IconData icon;
+
+  /// Display name in the current language.
+  String get name {
+    final l = L10n.current;
+    return switch (id) {
+      'plain' => l.backgroundPlain,
+      'soft' => l.backgroundSoft,
+      'aurora' => l.backgroundAurora,
+      'mesh' => l.backgroundMesh,
+      'dots' => l.backgroundDots,
+      'waves' => l.backgroundWaves,
+      'grid' => l.backgroundGrid,
+      'stars' => l.backgroundStars,
+      _ => l.backgroundCustom,
+    };
+  }
 }
 
 const List<BackgroundOption> backgroundOptions = <BackgroundOption>[
-  BackgroundOption('plain', 'سادة', Icons.crop_square_rounded),
-  BackgroundOption('soft', 'هادئ', Icons.gradient_rounded),
-  BackgroundOption('aurora', 'شفق', Icons.blur_on_rounded),
-  BackgroundOption('mesh', 'متدرّج', Icons.auto_awesome_rounded),
-  BackgroundOption('dots', 'نقاط', Icons.grain_rounded),
-  BackgroundOption('waves', 'أمواج', Icons.waves_rounded),
-  BackgroundOption('grid', 'شبكة', Icons.grid_4x4_rounded),
-  BackgroundOption('stars', 'نجوم', Icons.star_outline_rounded),
+  BackgroundOption('plain', Icons.crop_square_rounded),
+  BackgroundOption('soft', Icons.gradient_rounded),
+  BackgroundOption('aurora', Icons.blur_on_rounded),
+  BackgroundOption('mesh', Icons.auto_awesome_rounded),
+  BackgroundOption('dots', Icons.grain_rounded),
+  BackgroundOption('waves', Icons.waves_rounded),
+  BackgroundOption('grid', Icons.grid_4x4_rounded),
+  BackgroundOption('stars', Icons.star_outline_rounded),
 ];
 
 /// Paints the user's chosen background behind [child].

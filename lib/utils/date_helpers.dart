@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../l10n/l10n.dart';
+
 /// Global week configuration. Loaded from settings at startup (and inside
 /// background isolates) so that every week computation agrees.
 class WeekSettings {
@@ -84,32 +86,52 @@ DateTime todayDate() => dateOnly(DateTime.now());
 
 DateTime tomorrowDate() => addDays(todayDate(), 1);
 
-String formatFullDate(DateTime date) {
-  return DateFormat('EEEE، d MMMM yyyy', 'ar').format(dateOnly(date));
+/// Formats [date] with a pattern taken from the translations (so each
+/// language can order day/month its own way).
+String _format(String pattern, DateTime date) {
+  try {
+    return DateFormat(pattern, L10n.code).format(date);
+  } catch (_) {
+    return DateFormat('yyyy/MM/dd').format(date);
+  }
 }
 
-String formatShortDate(DateTime date) {
-  return DateFormat('d MMMM', 'ar').format(dateOnly(date));
-}
+String formatFullDate(DateTime date) =>
+    _format(L10n.current.dateFormatFull, dateOnly(date));
+
+String formatShortDate(DateTime date) =>
+    _format(L10n.current.dateFormatShort, dateOnly(date));
+
+/// "Friday, November 13" / "الجمعة، 13 نوفمبر".
+String formatWeekdayDayMonth(DateTime date) =>
+    _format(L10n.current.dateFormatWeekdayDayMonth, dateOnly(date));
+
+String formatMonthYear(DateTime date) =>
+    _format(L10n.current.dateFormatMonthYear, date);
+
+/// Clock time of [date], e.g. "9:05 PM".
+String formatClockTime(DateTime date) => _format('h:mm a', date);
 
 String relativeDateLabel(DateTime date) {
   final normalized = dateOnly(date);
   final today = todayDate();
 
+  final l10n = L10n.current;
+
   if (isSameDate(normalized, addDays(today, 1))) {
-    return 'غدًا';
+    return l10n.tomorrow;
   }
   if (isSameDate(normalized, today)) {
-    return 'اليوم';
+    return l10n.today;
   }
   if (isSameDate(normalized, addDays(today, -1))) {
-    return 'أمس';
+    return l10n.yesterday;
   }
   if (isSameDate(normalized, addDays(today, 2))) {
-    return 'بعد غد';
+    return l10n.dayAfterTomorrow;
   }
 
-  return DateFormat('EEEE', 'ar').format(normalized);
+  return weekDayName(normalized.weekday);
 }
 
 /// Hours at which the greeting changes: night, morning, afternoon, evening.
@@ -127,16 +149,17 @@ DateTime nextGreetingChange(DateTime now) {
 
 String greetingForNow([DateTime? now]) {
   final hour = (now ?? DateTime.now()).hour;
+  final l10n = L10n.current;
   if (hour < 5) {
-    return 'ليلة هادئة';
+    return l10n.greetingNight;
   }
   if (hour < 12) {
-    return 'صباح الخير';
+    return l10n.greetingMorning;
   }
   if (hour < 17) {
-    return 'نهارك سعيد';
+    return l10n.greetingAfternoon;
   }
-  return 'مساء الخير';
+  return l10n.greetingEvening;
 }
 
 String formatTaskTime(BuildContext context, int minutes) {
@@ -149,7 +172,7 @@ String formatTaskTime(BuildContext context, int minutes) {
 String formatMinutesOfDay(int minutes) {
   final hour = minutes ~/ 60;
   final minute = minutes % 60;
-  final suffix = hour < 12 ? 'ص' : 'م';
+  final suffix = hour < 12 ? L10n.current.timeAm : L10n.current.timePm;
   var displayHour = hour % 12;
   if (displayHour == 0) {
     displayHour = 12;
@@ -159,32 +182,45 @@ String formatMinutesOfDay(int minutes) {
 
 int minutesFromTimeOfDay(TimeOfDay time) => (time.hour * 60) + time.minute;
 
-/// Formats a duration as "3 س 25 د" style text.
+/// Formats a duration as "3 h 25 min" / "3 س 25 د" style text.
 String formatDurationShort(Duration duration) {
+  final l10n = L10n.current;
   final totalMinutes = duration.inMinutes;
   if (totalMinutes < 1) {
-    return duration.inSeconds > 0 ? 'أقل من دقيقة' : '0 د';
+    return duration.inSeconds > 0
+        ? l10n.durationLessThanMinute
+        : l10n.durationMinutes(0);
   }
   final hours = totalMinutes ~/ 60;
   final minutes = totalMinutes % 60;
   if (hours == 0) {
-    return '$minutes د';
+    return l10n.durationMinutes(minutes);
   }
   if (minutes == 0) {
-    return '$hours س';
+    return l10n.durationHours(hours);
   }
-  return '$hours س $minutes د';
+  return l10n.durationHoursMinutes(hours, minutes);
 }
 
-const Map<int, String> arabicWeekDayNames = <int, String>{
-  DateTime.monday: 'الإثنين',
-  DateTime.tuesday: 'الثلاثاء',
-  DateTime.wednesday: 'الأربعاء',
-  DateTime.thursday: 'الخميس',
-  DateTime.friday: 'الجمعة',
-  DateTime.saturday: 'السبت',
-  DateTime.sunday: 'الأحد',
-};
+/// Name of [weekday] ([DateTime.monday] .. [DateTime.sunday]). [short] gives
+/// "Mon" in English for tight spaces; Arabic names are used as they are.
+String weekDayName(int weekday, {bool short = false}) {
+  if (short && !L10n.isArabic) {
+    // 2024-01-01 was a Monday.
+    return _format('EEE', DateTime(2024, 1, weekday));
+  }
+  final l10n = L10n.current;
+  return switch (weekday) {
+    DateTime.monday => l10n.weekdayMonday,
+    DateTime.tuesday => l10n.weekdayTuesday,
+    DateTime.wednesday => l10n.weekdayWednesday,
+    DateTime.thursday => l10n.weekdayThursday,
+    DateTime.friday => l10n.weekdayFriday,
+    DateTime.saturday => l10n.weekdaySaturday,
+    DateTime.sunday => l10n.weekdaySunday,
+    _ => weekday.toString(),
+  };
+}
 
 /// Week days ordered starting from [startDay] (defaults to the configured
 /// first day of the week).
@@ -202,6 +238,6 @@ String formatWeekDays(Set<int> days, [int? startDay]) {
     ..sort((int a, int b) => order.indexOf(a).compareTo(order.indexOf(b)));
 
   return sortedDays
-      .map((int day) => arabicWeekDayNames[day] ?? day.toString())
-      .join('، ');
+      .map((int day) => weekDayName(day, short: true))
+      .join(L10n.current.listSeparator);
 }

@@ -3,6 +3,8 @@ package com.adamg00d.mongez
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import android.view.View
+import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -19,6 +21,20 @@ internal object WidgetCommon {
 
   fun string(prefs: SharedPreferences, key: String, fallback: String = ""): String =
       prefs.getString(key, fallback) ?: fallback
+
+  /**
+   * Lays [rootId] out in the app's language direction (written by Dart as
+   * `widget_rtl`), which may differ from the device language. Before the app
+   * has synced, the layout keeps following the device locale.
+   */
+  fun applyDirection(views: RemoteViews, rootId: Int, prefs: SharedPreferences) {
+    val rtl = int(prefs, "widget_rtl", -1)
+    if (rtl == -1) return
+    views.setInt(
+        rootId,
+        "setLayoutDirection",
+        if (rtl == 1) View.LAYOUT_DIRECTION_RTL else View.LAYOUT_DIRECTION_LTR)
+  }
 
   fun openApp(context: Context) =
       HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java, Uri.parse("mongez://open"))

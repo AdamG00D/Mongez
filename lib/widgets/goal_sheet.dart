@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/l10n.dart';
 import '../models/goal.dart';
 import '../providers/goals_provider.dart';
 
@@ -37,21 +38,30 @@ class GoalSuggestion {
   final String? unit;
 }
 
-const List<GoalSuggestion> goalSuggestions = <GoalSuggestion>[
-  GoalSuggestion('قراءة 12 كتابًا', 'book', target: 12, unit: 'كتاب'),
-  GoalSuggestion(
-    'ممارسة الرياضة بانتظام',
-    'fitness',
-    target: 150,
-    unit: 'تمرين',
-  ),
-  GoalSuggestion('ادخار مبلغ للطوارئ', 'money'),
-  GoalSuggestion('تعلّم لغة جديدة', 'language'),
-  GoalSuggestion('إنهاء كورس احترافي', 'study'),
-  GoalSuggestion('حفظ جزء من القرآن', 'faith'),
-  GoalSuggestion('السفر إلى مكان جديد', 'travel'),
-  GoalSuggestion('بناء مشروع جانبي', 'code'),
-];
+/// Quick goal ideas in the current language.
+List<GoalSuggestion> get goalSuggestions {
+  final l = L10n.current;
+  return <GoalSuggestion>[
+    GoalSuggestion(
+      l.suggestionBooks,
+      'book',
+      target: 12,
+      unit: l.suggestionBooksUnit,
+    ),
+    GoalSuggestion(
+      l.suggestionFitness,
+      'fitness',
+      target: 150,
+      unit: l.suggestionFitnessUnit,
+    ),
+    GoalSuggestion(l.suggestionMoney, 'money'),
+    GoalSuggestion(l.suggestionLanguage, 'language'),
+    GoalSuggestion(l.suggestionStudy, 'study'),
+    GoalSuggestion(l.suggestionFaith, 'faith'),
+    GoalSuggestion(l.suggestionTravel, 'travel'),
+    GoalSuggestion(l.suggestionCode, 'code'),
+  ];
+}
 
 class _GoalSheetState extends State<GoalSheet> {
   final TextEditingController _title = TextEditingController();
@@ -138,7 +148,9 @@ class _GoalSheetState extends State<GoalSheet> {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Text(
-                widget.goal == null ? 'هدف جديد لعام $year' : 'تعديل الهدف',
+                widget.goal == null
+                    ? context.l10n.newGoalForYear(year)
+                    : context.l10n.editGoal,
                 style: textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w900,
                 ),
@@ -148,26 +160,27 @@ class _GoalSheetState extends State<GoalSheet> {
                 controller: _title,
                 autofocus: widget.goal == null && widget.suggestion == null,
                 style: const TextStyle(fontWeight: FontWeight.w700),
-                decoration: const InputDecoration(
-                  hintText: 'ما الذي تريد تحقيقه هذا العام؟',
-                  prefixIcon: Icon(Icons.flag_rounded),
+                decoration: InputDecoration(
+                  hintText: context.l10n.goalTitleHint,
+                  prefixIcon: const Icon(Icons.flag_rounded),
                 ),
-                validator: (String? v) =>
-                    (v == null || v.trim().isEmpty) ? 'اكتب الهدف' : null,
+                validator: (String? v) => (v == null || v.trim().isEmpty)
+                    ? context.l10n.goalTitleRequired
+                    : null,
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _why,
                 minLines: 2,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText: 'لماذا هذا الهدف مهم لك؟ (سنذكّرك به حين تفتر)',
-                  prefixIcon: Icon(Icons.favorite_rounded),
+                decoration: InputDecoration(
+                  hintText: context.l10n.goalWhyHint,
+                  prefixIcon: const Icon(Icons.favorite_rounded),
                 ),
               ),
               const SizedBox(height: 16),
               Text(
-                'الأيقونة',
+                context.l10n.goalIcon,
                 style: textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
@@ -206,8 +219,8 @@ class _GoalSheetState extends State<GoalSheet> {
                 contentPadding: EdgeInsets.zero,
                 value: _numeric,
                 onChanged: (bool v) => setState(() => _numeric = v),
-                title: const Text('هدف رقمي قابل للقياس'),
-                subtitle: const Text('مثال: 12 كتابًا، 100 تمرين'),
+                title: Text(context.l10n.numericGoal),
+                subtitle: Text(context.l10n.numericGoalExample),
               ),
               if (_numeric)
                 Row(
@@ -216,13 +229,17 @@ class _GoalSheetState extends State<GoalSheet> {
                       child: TextFormField(
                         controller: _target,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(hintText: 'العدد'),
+                        decoration: InputDecoration(
+                          hintText: context.l10n.goalTargetHint,
+                        ),
                         validator: (String? v) {
                           if (!_numeric) {
                             return null;
                           }
                           final n = int.tryParse(v?.trim() ?? '');
-                          return (n == null || n <= 0) ? 'رقم صحيح' : null;
+                          return (n == null || n <= 0)
+                              ? context.l10n.wholeNumber
+                              : null;
                         },
                       ),
                     ),
@@ -230,8 +247,8 @@ class _GoalSheetState extends State<GoalSheet> {
                     Expanded(
                       child: TextField(
                         controller: _unit,
-                        decoration: const InputDecoration(
-                          hintText: 'الوحدة (كتاب، كم...)',
+                        decoration: InputDecoration(
+                          hintText: context.l10n.goalUnitHint,
                         ),
                       ),
                     ),
@@ -243,7 +260,11 @@ class _GoalSheetState extends State<GoalSheet> {
                 child: FilledButton.icon(
                   onPressed: _save,
                   icon: const Icon(Icons.check_rounded),
-                  label: Text(widget.goal == null ? 'إضافة الهدف' : 'حفظ'),
+                  label: Text(
+                    widget.goal == null
+                        ? context.l10n.addGoal
+                        : context.l10n.save,
+                  ),
                 ),
               ),
             ],

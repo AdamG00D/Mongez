@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 
+import '../l10n/l10n.dart';
 import '../models/completion_record.dart';
 import '../models/goal.dart';
 import '../models/task.dart';
@@ -43,7 +44,7 @@ class BackupService {
       fileName: 'mongez-backup-$stamp.json',
       bytes: bytes,
       mimeType: 'application/json',
-      dialogTitle: 'حفظ نسخة احتياطية',
+      dialogTitle: L10n.current.backupDialogTitle,
     );
     return uri != null;
   }
@@ -51,7 +52,9 @@ class BackupService {
   /// Returns `null` if the user cancelled. Throws [FormatException] if the
   /// file is not a valid Mongez backup.
   Future<BackupData?> pickAndParse() async {
-    final files = await FilePicker.pickFiles(dialogTitle: 'اختر ملف النسخة');
+    final files = await FilePicker.pickFiles(
+      dialogTitle: L10n.current.backupPickTitle,
+    );
     if (files.isEmpty) {
       return null;
     }
@@ -60,10 +63,10 @@ class BackupService {
     try {
       decoded = jsonDecode(utf8.decode(bytes));
     } catch (_) {
-      throw const FormatException('الملف ليس نسخة احتياطية صالحة');
+      throw FormatException(L10n.current.backupInvalid);
     }
     if (decoded is! Map || decoded['app'] != 'mongez') {
-      throw const FormatException('الملف ليس نسخة احتياطية من مُنجز');
+      throw FormatException(L10n.current.backupNotMongez);
     }
 
     List<T> parse<T>(String key, T Function(Map<String, dynamic>) fromJson) {

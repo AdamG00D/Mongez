@@ -25,13 +25,23 @@ class MongezWidgetProvider : HomeWidgetProvider() {
     appWidgetIds.forEach { widgetId ->
       val views = RemoteViews(context.packageName, R.layout.mongez_widget)
       try {
+        WidgetCommon.applyDirection(views, R.id.widget_root, widgetData)
         val open = WidgetCommon.openApp(context)
         views.setOnClickPendingIntent(R.id.widget_header, open)
         views.setOnClickPendingIntent(R.id.widget_empty, open)
         views.setOnClickPendingIntent(R.id.widget_add, WidgetCommon.addTask(context))
 
         views.setTextViewText(
-            R.id.widget_title, WidgetCommon.string(widgetData, "widget_title", "مهام اليوم"))
+            R.id.widget_title, WidgetCommon.string(
+                widgetData, "widget_title", context.getString(R.string.widget_title)))
+        views.setTextViewText(
+            R.id.widget_empty,
+            WidgetCommon.string(
+                widgetData, "widget_empty_text", context.getString(R.string.widget_empty)))
+        views.setContentDescription(
+            R.id.widget_add,
+            WidgetCommon.string(
+                widgetData, "widget_add_label", context.getString(R.string.widget_add)))
         views.setTextViewText(
             R.id.widget_subtitle, WidgetCommon.string(widgetData, "widget_subtitle"))
         views.setTextViewText(

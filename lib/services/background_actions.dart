@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
+import '../l10n/l10n.dart';
 import '../utils/date_helpers.dart';
 import 'local_storage_service.dart';
 import 'notification_service.dart';
@@ -25,7 +26,9 @@ class BackgroundActions {
     bool fallbackToToday = true,
   }) async {
     final storage = LocalStorageService();
-    await storage.loadSettings(); // applies the week start setting
+    // Applies the week start setting; the language is applied below.
+    final settings = await storage.loadSettings();
+    await L10n.applyInBackground(settings.language);
 
     final tasks = await storage.loadTasks();
     final history = await storage.loadHistory();
@@ -74,7 +77,8 @@ class BackgroundActions {
   /// Recomputes the widget data (e.g. after midnight) from storage.
   static Future<void> refreshWidgets() async {
     final storage = LocalStorageService();
-    await storage.loadSettings();
+    final settings = await storage.loadSettings();
+    await L10n.applyInBackground(settings.language);
     final tasks = await storage.loadTasks();
     await WidgetSyncService().syncTodayTasks(tasks);
   }

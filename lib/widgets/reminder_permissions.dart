@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/l10n.dart';
 import '../providers/reminder_coordinator.dart';
 import '../services/notification_service.dart';
 import '../services/system_service.dart';
@@ -20,10 +21,9 @@ Future<void> ensureReminderPermissions(BuildContext context) async {
       final open = await _explain(
         context,
         icon: Icons.notifications_off_rounded,
-        title: 'الإشعارات متوقفة',
-        message:
-            'لن يصلك تذكير المهمة لأن إشعارات مُنجز متوقفة. فعّلها من الإعدادات.',
-        action: 'فتح الإعدادات',
+        title: context.l10n.notificationsOffTitle,
+        message: context.l10n.notificationsOffMessage,
+        action: context.l10n.openSettings,
       );
       if (open) {
         await SystemService.openNotificationSettings();
@@ -42,10 +42,9 @@ Future<void> ensureReminderPermissions(BuildContext context) async {
     final allow = await _explain(
       context,
       icon: Icons.alarm_rounded,
-      title: 'اسمح بالمنبّهات والتذكيرات',
-      message:
-          'ليصل التذكير في موعده بالضبط، فعّل خيار "المنبّهات والتذكيرات" لمُنجز في الصفحة التالية.',
-      action: 'السماح',
+      title: context.l10n.allowAlarmsTitle,
+      message: context.l10n.allowAlarmsMessage,
+      action: context.l10n.allow,
     );
     if (allow) {
       changed |= await notifications.requestExactAlarmPermission();
@@ -73,7 +72,7 @@ Future<bool> _explain(
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('لاحقًا'),
+          child: Text(context.l10n.later),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
