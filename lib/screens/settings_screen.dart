@@ -20,7 +20,7 @@ import '../widgets/common.dart';
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
-  static const String appVersion = '2.0.2';
+  static const String appVersion = '2.1.0';
 
   /// The project's source code page.
   static const String repoUrl = 'https://github.com/AdamG00D/Mongez';

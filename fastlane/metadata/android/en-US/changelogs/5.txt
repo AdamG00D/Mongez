@@ -1,0 +1,3 @@
+• Mongez is now in Arabic and English: it follows your phone's language, and you can switch it in Settings → Language
+• Widgets and reminders follow the app language
+• The GitHub button opens the project page

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.0
+
+### Added
+- English. By default the app follows the device language (Arabic or English; any other
+  language falls back to English), and it can be changed in Settings → Language. Home-screen
+  widgets, reminders and notification channel names follow the chosen language.
+
+### Changed
+- Settings → About → GitHub opens the project's repository instead of the developer profile.
+
 ## 2.0.2
 
 ### Fixed
