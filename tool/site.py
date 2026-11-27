@@ -15,6 +15,7 @@ SITE = ROOT / 'site'
 C = {
     'name_ar': 'مُنجز', 'name_en': 'Mongez',
     'base': 'https://adamg00d.github.io/Mongez/', 'repo': 'https://github.com/AdamG00D/Mongez',
+    'verify': {'google6da38e735cb6412d.html': 'google-site-verification: google6da38e735cb6412d.html'},
     'android': 'Android 7.0+', 'category': 'ProductivityApplication',
     'dark': '#0B3B2E', 'accent': '#10B981', 'accentInk': '#047857', 'onAccent': '#FFFFFF',
     'bg': '#F2FBF7', 'line': '#D1F0E3', 'bgDark': '#0B1512', 'cardDark': '#13231D', 'lineDark': '#1F3A30',
