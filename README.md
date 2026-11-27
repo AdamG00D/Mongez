@@ -12,7 +12,7 @@
 [![Flutter CI](https://github.com/AdamG00D/Mongez/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/AdamG00D/Mongez/actions/workflows/flutter-ci.yml)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 
-**[English](README.en.md)** · [التحميل](#التحميل) · [المميزات](#المميزات) · [الخصوصية](#الخصوصية) · [المساهمة](#المساهمة)
+**[English](README.en.md)** · [الموقع](https://adamg00d.github.io/Mongez/) · [التحميل](#التحميل) · [المميزات](#المميزات) · [الخصوصية](#الخصوصية) · [المساهمة](#المساهمة)
 
 </div>
 

@@ -12,7 +12,7 @@ Plan your day, keep your streaks, track yearly goals and screen time. No account
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[العربية](README.md) · [Download](#download) · [Features](#features) · [Getting started](#getting-started) · [Contributing](#contributing)
+[العربية](README.md) · [Website](https://adamg00d.github.io/Mongez/en/) · [Download](#download) · [Features](#features) · [Getting started](#getting-started) · [Contributing](#contributing)
 
 </div>
 
